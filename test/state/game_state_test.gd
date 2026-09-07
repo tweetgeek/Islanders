@@ -99,8 +99,17 @@ func test_island_at_out_of_bounds_is_null() -> void:
 
 func test_apply_settlements_before_apply_world_is_rejected() -> void:
 	var gs: Node = auto_free(GameStateScript.new())
-	gs.apply_settlements([_own(103, 100)])
+	await assert_error(func() -> void: gs.apply_settlements([_own(103, 100)])) \
+		.is_push_error("GameState: apply_settlements przed apply_world")
 	assert_int(gs.settlements.size()).is_equal(0)
+
+
+func test_settlement_on_sea_reports_the_sea_error() -> void:
+	var gs := _state()
+	await assert_error(func() -> void: gs.apply_settlements([_own(100, 100)])) \
+		.is_push_error(
+			"GameState: osada na (100, 100), a WorldGrid uznaje tę komórkę za morze; rekord odrzucony (ADR 0001)"
+		)
 
 
 func test_apply_settlements_emits_settlement_updated_per_accepted_record() -> void:
