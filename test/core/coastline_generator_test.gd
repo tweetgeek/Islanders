@@ -19,7 +19,9 @@ func test_radii_within_bounds() -> void:
 	for seed_val in [1, 42, 84920, 1337]:
 		var pts := CoastlineGenerator.generate(seed_val, radius, 48, roughness)
 		for p in pts:
-			assert_float(p.length()).is_between(radius * (1.0 - roughness) * CoastlineGenerator.ELLIPSE_MIN, radius * (1.0 + roughness) * CoastlineGenerator.ELLIPSE_MAX)
+			assert_float(p.length()).is_between(
+				radius * (1.0 - roughness) * CoastlineGenerator.ELLIPSE_MIN,
+				radius * (1.0 + roughness) * CoastlineGenerator.ELLIPSE_MAX)
 
 
 func test_polygon_is_triangulable() -> void:
