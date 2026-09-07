@@ -22,6 +22,7 @@ func _ready() -> void:
 
 
 func _show(coord: Vector2i) -> void:
+	building_menu.hide()
 	var island := GameState.island_at(coord)
 	if island == null:
 		info.text = "Morze"
@@ -32,8 +33,8 @@ func _show(coord: Vector2i) -> void:
 	generator.radius = DETAIL_RADIUS
 	generator.deposit = island.deposit
 	generator.show_deposit = _settlement == null
-	generator.settlement = _settlement
 	generator.show_slots = _settlement != null and _settlement.is_own
+	generator.settlement = _settlement if generator.show_slots else null
 	generator.build()
 	info.text = _describe(island, _settlement)
 
