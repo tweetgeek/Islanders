@@ -22,21 +22,21 @@ static func load_json(path: String) -> Variant:
 	return parsed
 
 
-func fetch_world() -> Dictionary:
+func fetch_world() -> Variant:
 	var d: Variant = load_json(WORLD_PATH)
 	if not (d is Dictionary):
-		return {}
+		return null
 	d["serverTime"] = TimeUtil.to_iso8601(clock.call())
 	return d
 
 
 ## Pierwsze wywołanie stempluje lastSyncAt = now; kolejne przeliczają zasoby jak prawdziwy serwer.
-func fetch_settlements() -> Array:
+func fetch_settlements() -> Variant:
 	var now: float = clock.call()
 	if _settlements.is_empty():
 		var arr: Variant = load_json(SETTLEMENTS_PATH)
 		if not (arr is Array):
-			return []
+			return null
 		_settlements = arr
 		for d in _settlements:
 			if d is Dictionary and d.has("resources"):
@@ -49,12 +49,12 @@ func fetch_settlements() -> Array:
 
 
 ## Fixture podaje departOffsetMin / arriveOffsetMin względem pierwszego załadowania.
-func fetch_fleets() -> Array:
+func fetch_fleets() -> Variant:
 	if _fleets.is_empty():
 		var now: float = clock.call()
 		var arr: Variant = load_json(FLEETS_PATH)
 		if not (arr is Array):
-			return []
+			return null
 		_fleets = arr
 		for d in _fleets:
 			if d is Dictionary:

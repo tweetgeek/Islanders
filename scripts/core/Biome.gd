@@ -64,12 +64,14 @@ static func from_key(k: String) -> Type:
 	return Type.TEMPERATE
 
 
+## Kopia, nie referencja: RESOURCES jest stałą, a stałe GDScript da się zmutować w miejscu.
 static func resources(b: Type) -> Array:
-	return RESOURCES[b]
+	return RESOURCES[b].duplicate()
 
 
+## Kopia, nie referencja: patrz `resources()`.
 static func extraction_buildings(b: Type) -> Array:
-	return EXTRACTION[b]
+	return EXTRACTION[b].duplicate()
 
 
 ## Sześć slotów osady: cztery wspólne + dwa wydobywcze biomu, w stałej kolejności.

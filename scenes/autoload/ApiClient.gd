@@ -23,21 +23,37 @@ func _ready() -> void:
 
 
 func load_initial() -> void:
-	var w: Dictionary = await provider.fetch_world()
-	if w.is_empty():
+	var w: Variant = await provider.fetch_world()
+	if w == null:
 		request_failed.emit("world")
 		return
-	if w.has("serverTime"):
-		TimeUtil.set_server_time(TimeUtil.parse_iso8601(str(w["serverTime"])))
-	GameState.apply_world(w)
-	GameState.apply_settlements(await provider.fetch_settlements())
-	GameState.apply_fleets(await provider.fetch_fleets())
+	var world_dict: Dictionary = w
+	if world_dict.has("serverTime"):
+		TimeUtil.set_server_time(TimeUtil.parse_iso8601(str(world_dict["serverTime"])))
+	GameState.apply_world(world_dict)
+	var settlements: Variant = await provider.fetch_settlements()
+	if settlements == null:
+		request_failed.emit("settlements")
+		return
+	GameState.apply_settlements(settlements)
+	var fleets: Variant = await provider.fetch_fleets()
+	if fleets == null:
+		request_failed.emit("fleets")
+		return
+	GameState.apply_fleets(fleets)
 	GameState.finish_loading()
 	_timer.start()
 
 
 func resync() -> void:
-	var settlements: Array = await provider.fetch_settlements()
+	var settlements: Variant = await provider.fetch_settlements()
+	if settlements == null:
+		request_failed.emit("settlements")
+		return
 	GameState.apply_settlements(settlements)
-	GameState.apply_fleets(await provider.fetch_fleets())
+	var fleets: Variant = await provider.fetch_fleets()
+	if fleets == null:
+		request_failed.emit("fleets")
+		return
+	GameState.apply_fleets(fleets)
 	synced.emit()

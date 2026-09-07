@@ -11,7 +11,7 @@ static func key(c: Vector2i) -> String:
 
 static func from_key(k: String) -> Vector2i:
 	var parts := k.split(":")
-	if parts.size() != 2:
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
 		return NONE
 	return Vector2i(int(parts[0]), int(parts[1]))
 

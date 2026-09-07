@@ -40,7 +40,19 @@ func apply_settlements(arr: Array) -> void:
 			continue
 		settlements[Coord.key(coord)] = s
 		if active_settlement != null and active_settlement.coord == coord:
-			active_settlement = s
+			if s.is_own:
+				active_settlement = s
+			else:
+				# Osada aktywna zawsze musi być własna (CONTEXT.md): utracona -> cofamy się do
+				# domowej, jeśli wciąż nasza, inaczej brak aktywnej osady.
+				var previous := active_settlement
+				active_settlement = null
+				if world.home_settlement != Coord.NONE:
+					var home := settlement_at(world.home_settlement)
+					if home != null and home.is_own:
+						active_settlement = home
+				if active_settlement != previous:
+					active_settlement_changed.emit()
 		settlement_updated.emit(coord)
 
 

@@ -34,12 +34,25 @@ static func from_json(d: Dictionary, biome_type: Biome.Type) -> Settlement:
 	if s.is_own:
 		s.resources = ResourceTypes.normalize(d.get("resources"))
 		s.production_per_hour = ResourceTypes.normalize(d.get("productionPerHour"))
+		_warn_production_foreign_to_biome(s.production_per_hour, biome_type, coord)
 		s.capacity = float(d.get("capacity", 0.0))
 		s.population = int(d.get("population", 0))
 		s.population_max = int(d.get("populationMax", 0))
 		s.last_sync_at = TimeUtil.parse_iso8601(str(d.get("lastSyncAt", "1970-01-01T00:00:00Z")))
 		s.buildings = _parse_buildings(d.get("buildings", {}), biome_type)
 	return s
+
+
+## Serwer podaje produkcję wprost (klient jej nie wylicza), więc niezgodną wartość tylko
+## zgłaszamy ostrzeżeniem, tak jak `_parse_buildings` robi to dla budynków; wartość zostaje.
+static func _warn_production_foreign_to_biome(production: Dictionary, biome_type: Biome.Type, coord: Vector2i) -> void:
+	var allowed := Biome.resources(biome_type)
+	for k in production.keys():
+		if float(production[k]) > 0.0 and not allowed.has(k):
+			push_warning(
+				"Settlement: produkcja '%s' niezgodna z biomem %s na %s, wartość zachowana"
+				% [k, Biome.key(biome_type), Coord.key(coord)]
+			)
 
 
 static func _parse_buildings(raw: Variant, biome_type: Biome.Type) -> Dictionary:

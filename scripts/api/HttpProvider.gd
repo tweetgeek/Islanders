@@ -27,16 +27,16 @@ func _request_json(path: String) -> Variant:
 	return JSON.parse_string((result[3] as PackedByteArray).get_string_from_utf8())
 
 
-func fetch_world() -> Dictionary:
+func fetch_world() -> Variant:
 	var d: Variant = await _request_json("/world")
-	return d if d is Dictionary else {}
+	return d if d is Dictionary else null
 
 
-func fetch_settlements() -> Array:
+func fetch_settlements() -> Variant:
 	var a: Variant = await _request_json("/settlements")
-	return a if a is Array else []
+	return a if a is Array else null
 
 
-func fetch_fleets() -> Array:
+func fetch_fleets() -> Variant:
 	var a: Variant = await _request_json("/fleets")
-	return a if a is Array else []
+	return a if a is Array else null
