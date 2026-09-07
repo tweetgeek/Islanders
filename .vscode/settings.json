@@ -1,0 +1,21 @@
+{
+	"godotTools.editorPath.godot4": "/Applications/Godot.app/Contents/MacOS/Godot",
+	"godotFormatter.enabled": true,
+	"godotFormatter.enableLinter": true,
+	"godotFormatter.linterMaxLineLength": 120,
+	"files.associations": {
+		"*.gd": "gdscript"
+	},
+	"files.exclude": {
+		"**/*.uid": true,
+		"**/*.import": true,
+		"**/.DS_Store": true,
+		"**/Thumbs.db": true,
+		"**/CVS": true,
+		"**/.ruby-lsp": true
+	},
+	"[gdscript]": {
+		"editor.defaultFormatter": "DoHe.godot-format",
+		"editor.formatOnSave": true
+	}
+}
