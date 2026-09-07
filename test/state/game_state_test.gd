@@ -152,3 +152,25 @@ func test_foreign_settlement_rejection_does_not_emit_active_settlement_changed()
 	gs.active_settlement_changed.connect(func() -> void: received.append(true))
 	assert_bool(gs.set_active_settlement(Vector2i(95, 100))).is_false()
 	assert_that(received).is_equal([])
+
+
+func test_apply_settlements_clears_active_when_it_becomes_foreign() -> void:
+	var gs := _state()
+	gs.apply_settlements([_own(103, 100)])
+	gs.finish_loading()
+	assert_object(gs.active_settlement).is_not_null()
+	gs.apply_settlements([{"x": 103, "y": 100, "ownerId": 9, "name": "Obca"}])
+	assert_object(gs.active_settlement).is_null()
+
+
+func test_apply_settlements_falls_back_to_home_when_active_becomes_foreign() -> void:
+	var gs := _state()
+	gs.apply_settlements([_own(103, 100), _own(95, 100)])
+	gs.finish_loading()
+	assert_bool(gs.set_active_settlement(Vector2i(95, 100))).is_true()
+	var received: Array = []
+	gs.active_settlement_changed.connect(func() -> void: received.append(true))
+	gs.apply_settlements([{"x": 95, "y": 100, "ownerId": 9, "name": "Obca"}])
+	assert_object(gs.active_settlement).is_not_null()
+	assert_that(gs.active_settlement.coord).is_equal(Vector2i(103, 100))
+	assert_that(received).is_equal([true])

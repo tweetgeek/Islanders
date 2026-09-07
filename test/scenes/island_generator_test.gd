@@ -35,6 +35,12 @@ func test_slots_follow_biome() -> void:
 	assert_int(gen.slot_at(Vector2(9999, 0))).is_equal(-1)
 
 
+func test_slots_follow_biome_tropical() -> void:
+	var gen := _generator(Biome.Type.TROPICAL, true)
+	assert_object(gen.get_node_or_null("Slot_SAWMILL")).is_not_null()
+	assert_object(gen.get_node_or_null("Slot_IRON_MINE")).is_null()
+
+
 func test_deposit_marker_only_when_requested() -> void:
 	var gen := _generator(Biome.Type.TEMPERATE, false)
 	gen.deposit = {"iron": 300.0}

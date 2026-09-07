@@ -15,3 +15,7 @@ func test_from_json() -> void:
 
 func test_from_key_invalid() -> void:
 	assert_that(Coord.from_key("garbage")).is_equal(Coord.NONE)
+	assert_that(Coord.from_key("a:b")).is_equal(Coord.NONE)
+	assert_that(Coord.from_key("1:b")).is_equal(Coord.NONE)
+	assert_that(Coord.from_key("a:1")).is_equal(Coord.NONE)
+	assert_that(Coord.from_key("1:2:3")).is_equal(Coord.NONE)
