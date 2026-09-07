@@ -1,0 +1,9 @@
+{
+  "id": "w1",
+  "seed": 1337,
+  "size": { "w": 200, "h": 200 },
+  "wind": { "x": 0.3, "y": -0.1 },
+  "status": "OPEN",
+  "playerId": 7,
+  "homeSettlement": { "x": 103, "y": 100 }
+}
