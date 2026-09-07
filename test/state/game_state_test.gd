@@ -95,3 +95,51 @@ func test_inspect_emits_signal() -> void:
 func test_island_at_out_of_bounds_is_null() -> void:
 	var gs := _state()
 	assert_object(gs.island_at(Vector2i(500, 500))).is_null()
+
+
+func test_apply_settlements_before_apply_world_is_rejected() -> void:
+	var gs: Node = auto_free(GameStateScript.new())
+	gs.apply_settlements([_own(103, 100)])
+	assert_int(gs.settlements.size()).is_equal(0)
+
+
+func test_apply_settlements_emits_settlement_updated_per_accepted_record() -> void:
+	var gs := _state()
+	var received: Array = []
+	gs.settlement_updated.connect(func(c: Vector2i) -> void: received.append(c))
+	gs.apply_settlements([_own(103, 100), {"x": 95, "y": 100, "ownerId": 9, "name": "Obca"}])
+	assert_that(received).is_equal([Vector2i(103, 100), Vector2i(95, 100)])
+
+
+func test_apply_fleets_emits_fleets_updated() -> void:
+	var gs := _state()
+	var received: Array = []
+	gs.fleets_updated.connect(func() -> void: received.append(true))
+	gs.apply_fleets([{"id": "f1", "from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}])
+	assert_that(received).is_equal([true])
+
+
+func test_finish_loading_emits_state_loaded() -> void:
+	var gs := _state()
+	var received: Array = []
+	gs.state_loaded.connect(func() -> void: received.append(true))
+	gs.finish_loading()
+	assert_that(received).is_equal([true])
+
+
+func test_set_active_settlement_emits_active_settlement_changed() -> void:
+	var gs := _state()
+	gs.apply_settlements([_own(103, 100)])
+	var received: Array = []
+	gs.active_settlement_changed.connect(func() -> void: received.append(true))
+	assert_bool(gs.set_active_settlement(Vector2i(103, 100))).is_true()
+	assert_that(received).is_equal([true])
+
+
+func test_foreign_settlement_rejection_does_not_emit_active_settlement_changed() -> void:
+	var gs := _state()
+	gs.apply_settlements([{"x": 95, "y": 100, "ownerId": 9, "name": "Obca"}])
+	var received: Array = []
+	gs.active_settlement_changed.connect(func() -> void: received.append(true))
+	assert_bool(gs.set_active_settlement(Vector2i(95, 100))).is_false()
+	assert_that(received).is_equal([])
