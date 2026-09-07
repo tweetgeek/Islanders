@@ -77,9 +77,7 @@ func test_apply_settlements_refreshes_active_reference() -> void:
 
 func test_apply_fleets_replaces_all() -> void:
 	var gs := _state()
-	gs.apply_fleets(
-		[{"id": "f1", "from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}, {"id": "bad"}]
-	)
+	gs.apply_fleets([{"id": "f1", "from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}, {"id": "bad"}])
 	assert_int(gs.fleets.size()).is_equal(1)
 	gs.apply_fleets([])
 	assert_int(gs.fleets.size()).is_equal(0)
