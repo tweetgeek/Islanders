@@ -67,9 +67,11 @@ func apply_fleets(arr: Array) -> void:
 	fleets_updated.emit()
 
 
-## Wołane po pierwszym pełnym załadowaniu: osada domowa staje się aktywna.
+## Wołane po pierwszym pełnym załadowaniu: osada domowa staje się aktywna, o ile już ją mamy
+## (nieudany fetch osad zostawia settlements puste — wtedy nie ma czego aktywować i to nie błąd;
+## kolejny resync ją uzupełni).
 func finish_loading() -> void:
-	if world != null and active_settlement == null:
+	if world != null and active_settlement == null and settlement_at(world.home_settlement) != null:
 		set_active_settlement(world.home_settlement)
 	state_loaded.emit()
 

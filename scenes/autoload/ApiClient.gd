@@ -22,6 +22,9 @@ func _ready() -> void:
 	add_child(_timer)
 
 
+## Bez świata klient nie ma czego pokazać, więc nieudany fetch świata przerywa ładowanie.
+## Nieudany fetch osad/flot po udanym świecie tylko pomija swoje apply_*: GameState ma dojść
+## do stanu używalnego (mapa świata, timer resync), a brakujące dane odzyska kolejny resync.
 func load_initial() -> void:
 	var w: Variant = await provider.fetch_world()
 	if w == null:
@@ -34,13 +37,13 @@ func load_initial() -> void:
 	var settlements: Variant = await provider.fetch_settlements()
 	if settlements == null:
 		request_failed.emit("settlements")
-		return
-	GameState.apply_settlements(settlements)
+	else:
+		GameState.apply_settlements(settlements)
 	var fleets: Variant = await provider.fetch_fleets()
 	if fleets == null:
 		request_failed.emit("fleets")
-		return
-	GameState.apply_fleets(fleets)
+	else:
+		GameState.apply_fleets(fleets)
 	GameState.finish_loading()
 	_timer.start()
 

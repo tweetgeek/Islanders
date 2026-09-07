@@ -174,3 +174,25 @@ func test_apply_settlements_falls_back_to_home_when_active_becomes_foreign() -> 
 	assert_object(gs.active_settlement).is_not_null()
 	assert_that(gs.active_settlement.coord).is_equal(Vector2i(103, 100))
 	assert_that(received).is_equal([true])
+
+
+## Nieudany fetch osad (ApiClient.load_initial) zostawia settlements puste; finish_loading
+## musi mimo to dojść do końca bez błędu, żeby resync mógł kiedyś odzyskać brakujące dane.
+func test_finish_loading_without_settlements_emits_state_loaded_without_error() -> void:
+	var gs := _state()
+	var received: Array = []
+	gs.state_loaded.connect(func() -> void: received.append(true))
+	await assert_error(func() -> void: gs.finish_loading()).is_success()
+	assert_object(gs.active_settlement).is_null()
+	assert_that(received).is_equal([true])
+
+
+func test_finish_loading_still_activates_home_when_present() -> void:
+	var gs := _state()
+	gs.apply_settlements([_own(103, 100)])
+	var received: Array = []
+	gs.state_loaded.connect(func() -> void: received.append(true))
+	gs.finish_loading()
+	assert_object(gs.active_settlement).is_not_null()
+	assert_that(gs.active_settlement.coord).is_equal(Vector2i(103, 100))
+	assert_that(received).is_equal([true])
