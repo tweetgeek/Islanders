@@ -22,10 +22,10 @@ func _ready() -> void:
 	camera.tapped.connect(_on_tapped)
 	GameState.settlement_updated.connect(_on_settlement_updated)
 	GameState.fleets_updated.connect(fleets.refresh)
-	if GameState.world != null:
-		camera.set_bounds(Rect2(Vector2.ZERO, Vector2(GameState.world.size) * WorldGrid.CELL_SIZE))
 	if GameState.active_settlement != null:
 		camera.position = WorldGrid.cell_to_world(GameState.active_settlement.coord)
+	if GameState.world != null:
+		camera.set_bounds(Rect2(Vector2.ZERO, Vector2(GameState.world.size) * WorldGrid.CELL_SIZE))
 	_rebuild_labels()
 	_refresh_chunks()
 

@@ -46,3 +46,24 @@ func test_small_world_is_centered() -> void:
 	cam.position = Vector2(9999, 9999)
 	cam._clamp_position()
 	assert_that(cam.position).is_equal(Vector2(50, 50))
+
+
+func test_second_touch_clears_drag_velocity() -> void:
+	var cam := _camera()
+	var touch0 := InputEventScreenTouch.new()
+	touch0.index = 0
+	touch0.pressed = true
+	touch0.position = Vector2(100, 100)
+	cam._on_touch(touch0)
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(150, 100)
+	drag.relative = Vector2(50, 0)
+	cam._on_drag(drag)
+	assert_that(cam._velocity).is_not_equal(Vector2.ZERO)
+	var touch1 := InputEventScreenTouch.new()
+	touch1.index = 1
+	touch1.pressed = true
+	touch1.position = Vector2(200, 100)
+	cam._on_touch(touch1)
+	assert_that(cam._velocity).is_equal(Vector2.ZERO)

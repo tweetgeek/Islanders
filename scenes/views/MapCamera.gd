@@ -59,6 +59,7 @@ func _on_touch(e: InputEventScreenTouch) -> void:
 		elif _touches.size() == 2:
 			var pts: Array = _touches.values()
 			_pinch_dist = pts[0].distance_to(pts[1])
+			_velocity = Vector2.ZERO
 	else:
 		var was_single := _touches.size() == 1
 		_touches.erase(e.index)
