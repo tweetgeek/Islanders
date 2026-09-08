@@ -79,12 +79,7 @@ func _dim_chips() -> void:
 		_chips[r].modulate.a = 1.0 if _settlement.produces(r) else DIMMED
 
 
-## Przesuwa pasek pod notch; safe area jest w pikselach okna, viewport w pikselach canvasu.
+## Przesuwa pasek pod notch; pasek rośnie z zawartością, więc ustawiamy tylko górną krawędź.
 func _apply_safe_area() -> void:
-	var safe := DisplayServer.get_display_safe_area()
-	var win := DisplayServer.window_get_size()
-	var vis := get_viewport().get_visible_rect().size
-	var scale := vis.y / maxf(float(win.y), 1.0)
-	var top := float(safe.position.y) * scale
-	top_bar.offset_top = top
-	top_bar.offset_bottom = top + BAR_HEIGHT
+	top_bar.offset_top = SafeArea.top_inset(get_viewport())
+	top_bar.offset_bottom = top_bar.offset_top + BAR_HEIGHT
