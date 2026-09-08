@@ -41,7 +41,8 @@ func test_cards_show_amounts_and_rates() -> void:
 	assert_str(hud.amount_of("wood").text).is_equal("12" + TimeUtil.THIN_SPACE + "480")
 	assert_str(hud.rate_of("wood").text).is_equal("+120/h")
 	assert_str(hud.rate_of("stone").text).is_equal("")
-	assert_float(hud.cards["stone"].modulate.a).is_equal(hud.DIMMED)
+	# Color.a jest float32, więc zapis i odczyt 0.45 różni się o 1 ULP - stąd tolerancja.
+	assert_float(hud.cards["stone"].modulate.a).is_equal_approx(hud.DIMMED, 0.001)
 	assert_float(hud.cards["wood"].modulate.a).is_equal(1.0)
 
 

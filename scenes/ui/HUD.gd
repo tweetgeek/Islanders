@@ -4,10 +4,8 @@ extends CanvasLayer
 ## Pokazuje wyłącznie osadę aktywną; oglądana wyspa to zadanie InspectSheet.
 
 const NARROW_WIDTH := 700.0
-## 45% nieprzezroczystości. Color.modulate.a to float32 (silnik, nie GDScript), więc dosłowne
-## 0.45 (float64) zaokrągla się przy zapisie do Color; ta stała to dokładnie ten sam bit float32
-## podniesiony z powrotem do float64 - odczyt modulate.a po zapisie znów równa się DIMMED.
-const DIMMED := 0.44999998807907104
+## Przyciemnienie karty zasobu, którego osada nie produkuje (45% krycia).
+const DIMMED := 0.45
 const PAD := 12.0
 const AVATAR := 40.0
 const ICON := 24.0
