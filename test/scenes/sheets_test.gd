@@ -108,3 +108,29 @@ func test_open_fleets_shows_fleets_sheet() -> void:
 	s.open_fleets()
 	assert_object(s.current_sheet()).is_same(s.fleets_sheet)
 	assert_bool(s.fleets_sheet.visible).is_true()
+
+
+## Regresja: _layout() liczony zanim panel dostał realną szerokość (przed panel.show()
+## przechodzącym przez kontenery) sprawiał, że autowrapowany Label (np. Description) mierzył się
+## przy szerokości 0 i zawyżał swój minimalny rozmiar, przez co PanelContainer rósł poza
+## przydzielony ułamek ekranu i zostawał tak na stałe (nic później nie woła _layout() ponownie).
+func test_building_sheet_height_matches_fraction() -> void:
+	var s := _sheets()
+	s.open_building(_settlement(), Buildings.Type.TOWN_HALL)
+	await await_idle_frame()
+	await await_idle_frame()
+	var vis_h: float = get_viewport().get_visible_rect().size.y
+	var expected: float = vis_h * s.HEIGHT_BUILDING
+	assert_float(s.building_sheet.size.y).is_between(expected - 2.0, expected + 2.0)
+
+
+func test_inspect_sheet_height_matches_fraction() -> void:
+	var s := _sheets()
+	GameState.apply_world(FixtureCells.world_json())
+	GameState.apply_settlements([{"x": FixtureCells.FOREIGN.x, "y": FixtureCells.FOREIGN.y, "ownerId": 9, "name": "Szara Skała"}])
+	assert_bool(s.open_inspect(FixtureCells.FOREIGN)).is_true()
+	await await_idle_frame()
+	await await_idle_frame()
+	var vis_h: float = get_viewport().get_visible_rect().size.y
+	var expected: float = vis_h * s.HEIGHT_INSPECT
+	assert_float(s.inspect_sheet.size.y).is_between(expected - 2.0, expected + 2.0)

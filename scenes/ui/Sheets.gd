@@ -84,6 +84,9 @@ func close() -> void:
 	)
 
 
+## Otwiera panel: stan (_current, is_open()) jest widoczny od razu, ale sam layout+animacja
+## czeka jedną klatkę na panel.show() (patrz _layout()) - to opóźnienie nie jest widoczne
+## dla wywołujących, bo nie czekają na _open().
 func _open(panel: Control, fraction: float) -> void:
 	_kill_tween()
 	for s in _all_sheets():
@@ -91,10 +94,13 @@ func _open(panel: Control, fraction: float) -> void:
 			s.hide()
 	_current = panel
 	_current_fraction = fraction
-	_layout(panel, fraction)
 	visible = true
 	panel.show()
 	backdrop.modulate.a = 0.0
+	await get_tree().process_frame
+	if panel != _current:
+		return   # w międzyczasie zamknięty albo zastąpiony innym arkuszem
+	_layout(panel, fraction)
 	var rest := panel.position.y
 	panel.position.y = rest + panel.size.y
 	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
