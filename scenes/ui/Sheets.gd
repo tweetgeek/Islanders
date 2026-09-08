@@ -107,7 +107,8 @@ func _open(panel: Control, fraction: float) -> void:
 	_tween.tween_property(panel, "position:y", rest, SLIDE_TIME)
 
 
-## Bez animacji: zmiana widoku albo otwarcie innego arkusza przy otwartym.
+## Bez animacji: reakcja na zmianę widoku (SceneManager.view_changed). Otwarcie innego arkusza
+## przy już otwartym obsługuje sam _open() (jego pętla chowa wszystko poza nowym arkuszem).
 func _hide_now() -> void:
 	_kill_tween()
 	for s in _all_sheets():

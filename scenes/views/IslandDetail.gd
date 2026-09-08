@@ -17,6 +17,10 @@ const NO_SETTLEMENT_TEXT := "Brak osady"
 
 var _settlement: Settlement = null
 var _pressed_slot: int = -1
+## Indeks dotyku, który trzyma wciśnięty slot. Widok osady obsługuje wyłącznie tapnięcie,
+## więc drugi palec jest ignorowany, dopóki pierwszy nie puści - inaczej nadpisałby _pressed_slot
+## i zostawił poprzednią plakietkę wciśniętą na zawsze (MapCamera rozwiązuje to tak samo).
+var _pressed_index: int = -1
 var _hint_dismissed := false
 
 
@@ -31,6 +35,7 @@ func _ready() -> void:
 func _refresh() -> void:
 	_settlement = GameState.active_settlement
 	_pressed_slot = -1
+	_pressed_index = -1
 	if _settlement == null:
 		generator.clear()
 		hint_label.text = NO_SETTLEMENT_TEXT
@@ -73,18 +78,26 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _settlement == null or not generator.show_slots:
 		return
 	if event is InputEventScreenTouch:
-		var slot := _slot_under(event.position)
 		if event.pressed:
+			# Gest już należy do innego palca: ignorujemy, żeby nie nadpisać _pressed_slot.
+			if _pressed_index != -1:
+				return
+			var slot := _slot_under(event.position)
+			_pressed_index = event.index
 			_pressed_slot = slot
 			if slot >= 0:
 				generator.set_pressed(slot, true)
 		else:
+			if event.index != _pressed_index:
+				return
+			var slot := _slot_under(event.position)
 			if _pressed_slot >= 0:
 				generator.set_pressed(_pressed_slot, false)
 			if slot >= 0 and slot == _pressed_slot:
 				_open_building(slot)
 			_pressed_slot = -1
-	elif event is InputEventScreenDrag and _pressed_slot >= 0:
+			_pressed_index = -1
+	elif event is InputEventScreenDrag and event.index == _pressed_index and _pressed_slot >= 0:
 		if _slot_under(event.position) != _pressed_slot:
 			generator.set_pressed(_pressed_slot, false)
 			_pressed_slot = -1
