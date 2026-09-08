@@ -2,7 +2,7 @@ extends Node2D
 
 ## Siatka komórek w widocznym prostokącie; WorldMap ustawia visible_rect co klatkę.
 
-const LINE_COLOR := Color(1.0, 1.0, 1.0, 0.06)
+const LINE_COLOR := Color(0.0, 0.0, 0.0, 0.18)
 
 var visible_rect := Rect2()
 

@@ -13,6 +13,7 @@ const HEIGHT_BUILDING := 0.5
 
 @onready var backdrop: ColorRect = $Backdrop
 @onready var building_sheet: BuildingSheet = $BuildingSheet
+@onready var inspect_sheet: InspectSheet = $InspectSheet
 
 var _current: Control = null
 var _current_fraction := 0.0
@@ -56,13 +57,9 @@ func open_fleets() -> void:
 
 
 func open_inspect(coord: Vector2i) -> bool:
-	var sheet := get_node_or_null("InspectSheet")
-	if sheet == null:
-		push_warning("Sheets: InspectSheet jeszcze nie istnieje")
+	if not inspect_sheet.open(coord):
 		return false
-	if not sheet.open(coord):
-		return false
-	_open(sheet, HEIGHT_INSPECT)
+	_open(inspect_sheet, HEIGHT_INSPECT)
 	return true
 
 

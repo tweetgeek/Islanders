@@ -21,3 +21,41 @@ script = ExtResource("3")
 [node name="Camera" type="Camera2D" parent="."]
 script = ExtResource("4")
 current = true
+
+[node name="UI" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="BackPlaque" type="Button" parent="UI"]
+text = "OSADA"
+alignment = 2
+theme_type_variation = &"ToolButton"
+
+[node name="CoordPanel" type="PanelContainer" parent="UI"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_type_variation = &"Chip"
+
+[node name="Coord" type="Label" parent="UI/CoordPanel"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+
+[node name="ZoomControls" type="VBoxContainer" parent="UI"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="ZoomIn" type="Button" parent="UI/ZoomControls"]
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+
+[node name="ZoomOut" type="Button" parent="UI/ZoomControls"]
+layout_mode = 2
+theme_type_variation = &"ToolButton"

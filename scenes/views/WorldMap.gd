@@ -3,14 +3,24 @@ extends Node2D
 const CHUNK_REFRESH := 0.2
 const CHUNKS_PER_FRAME := 2
 const LABEL_MIN_ZOOM := 0.6
-const OWN_COLOR := Color(1.0, 0.85, 0.2)
-const FOREIGN_COLOR := Color(0.85, 0.85, 0.9)
+const OWN_COLOR := MedievalTheme.BRASS
+const FOREIGN_COLOR := MedievalTheme.CREAM_SOFT
+const LABEL_FONT_SIZE := 32
+const UI_MARGIN := 10.0
+const TOOL := 46.0
+const BACK_WIDTH := 110.0
 
 @onready var water: Node2D = $Water
 @onready var chunks: Node2D = $Chunks
 @onready var labels: Node2D = $Labels
 @onready var fleets: FleetRenderer = $Fleets
 @onready var camera: MapCamera = $Camera
+@onready var back_plaque: Button = $UI/BackPlaque
+@onready var coord_panel: PanelContainer = $UI/CoordPanel
+@onready var coord_label: Label = $UI/CoordPanel/Coord
+@onready var zoom_controls: VBoxContainer = $UI/ZoomControls
+@onready var zoom_in: Button = $UI/ZoomControls/ZoomIn
+@onready var zoom_out: Button = $UI/ZoomControls/ZoomOut
 
 ## Vector2i chunk -> Node2D
 var _loaded_chunks: Dictionary = {}
@@ -33,6 +43,12 @@ func _ready() -> void:
 		camera.set_bounds(Rect2(Vector2.ZERO, Vector2(GameState.world.size) * WorldGrid.CELL_SIZE))
 	_rebuild_labels()
 	_refresh_chunks()
+	back_plaque.pressed.connect(SceneManager.show_island_detail)
+	zoom_in.pressed.connect(camera.zoom_by.bind(1.25))
+	zoom_out.pressed.connect(camera.zoom_by.bind(0.8))
+	_style_ui()
+	get_viewport().size_changed.connect(_layout_ui)
+	_layout_ui()
 
 
 func _exit_tree() -> void:
@@ -56,6 +72,8 @@ func _process(delta: float) -> void:
 	labels.visible = camera.zoom.x >= LABEL_MIN_ZOOM
 	water.visible_rect = camera.visible_world_rect()
 	water.queue_redraw()
+	var cell := WorldGrid.world_to_cell(camera.position)
+	coord_label.text = "X %d · Y %d · zoom %.1f" % [cell.x, cell.y, camera.zoom.x]
 
 
 func _refresh_chunks() -> void:
@@ -123,6 +141,36 @@ func _settlement_ring(pos: Vector2, radius: float, s: Settlement) -> Line2D:
 	return ring
 
 
+func _style_ui() -> void:
+	var tool := MedievalTheme.px(TOOL)
+	back_plaque.custom_minimum_size = Vector2(MedievalTheme.px(BACK_WIDTH), tool)
+	Icon.into_button(back_plaque, &"back", MedievalTheme.CREAM, MedievalTheme.px(12))
+	var back_icon: Icon = back_plaque.get_node("Icon")
+	back_icon.set_anchors_preset(Control.PRESET_LEFT_WIDE)   # zeruje offsety, stąd ustawiane poniżej
+	back_icon.offset_left = MedievalTheme.px(12)
+	back_icon.offset_right = MedievalTheme.px(12 + 22)
+	back_icon.offset_top = MedievalTheme.px(12)
+	back_icon.offset_bottom = -MedievalTheme.px(12)
+	coord_label.add_theme_color_override("font_color", MedievalTheme.PARCHMENT)
+	zoom_controls.add_theme_constant_override("separation", MedievalTheme.px(8))
+	for b in [zoom_in, zoom_out]:
+		b.custom_minimum_size = Vector2(tool, tool)
+	Icon.into_button(zoom_in, &"plus", MedievalTheme.CREAM, MedievalTheme.px(13))
+	Icon.into_button(zoom_out, &"minus", MedievalTheme.CREAM, MedievalTheme.px(13))
+
+
+## Plakietka powrotu i panel współrzędnych pod paskiem HUD, zoom nad safe area.
+func _layout_ui() -> void:
+	var m := MedievalTheme.px(UI_MARGIN)
+	var hud := get_tree().get_first_node_in_group("hud")
+	var top: float = (hud.bar_height() if hud != null else 0.0) + m
+	back_plaque.position = Vector2(m, top)
+	coord_panel.offset_top = top
+	coord_panel.offset_right = -m
+	zoom_controls.offset_right = -m
+	zoom_controls.offset_bottom = -(SafeArea.bottom_inset(get_viewport()) + m)
+
+
 func _rebuild_labels() -> void:
 	for c in labels.get_children():
 		c.queue_free()
@@ -134,8 +182,9 @@ func _rebuild_labels() -> void:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.size = Vector2(240, 56)
 		label.position = WorldGrid.cell_to_world(s.coord) + Vector2(-120, radius * 1.3 + 4)
-		label.add_theme_font_size_override("font_size", 20)
-		label.modulate = OWN_COLOR if s.is_own else FOREIGN_COLOR
+		label.theme_type_variation = &"Title"
+		label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+		label.add_theme_color_override("font_color", OWN_COLOR if s.is_own else FOREIGN_COLOR)
 		labels.add_child(label)
 
 
@@ -156,8 +205,12 @@ func _on_tapped(world_pos: Vector2) -> void:
 	var local := world_pos - WorldGrid.cell_to_world(cell)
 	if not IslandGenerator.contains(local, island.radius):
 		return
-	GameState.inspect(cell)
 	var s := GameState.settlement_at(cell)
 	if s != null and s.is_own:
 		GameState.set_active_settlement(cell)
-	SceneManager.show_island_detail()
+		SceneManager.show_island_detail()
+		return
+	GameState.inspect(cell)
+	var sheets := get_tree().get_first_node_in_group("sheets")
+	if sheets != null:
+		sheets.open_inspect(cell)

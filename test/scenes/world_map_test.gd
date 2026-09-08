@@ -276,3 +276,23 @@ func test_settlement_update_rebuilds_chunk_without_duplicating() -> void:
 	var expected := _expected_wanted(camera)
 	assert_int(new_loaded.size()).is_equal(expected.size())
 	assert_int(chunks_container.get_child_count()).is_equal(new_loaded.size())
+
+
+func test_ui_layer_exists_with_back_and_zoom_buttons() -> void:
+	_apply_world()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	assert_object(world_map.back_plaque).is_instanceof(Button)
+	assert_object(world_map.zoom_in).is_instanceof(Button)
+	assert_object(world_map.zoom_out).is_instanceof(Button)
+	var before: float = (world_map.camera as MapCamera).zoom.x
+	world_map.zoom_in.pressed.emit()
+	assert_float((world_map.camera as MapCamera).zoom.x).is_greater(before)
+
+
+func test_coord_panel_follows_camera() -> void:
+	_apply_world()
+	var world_map := _spawn_map(WorldGrid.cell_to_world(HOME_CELL))
+	await _settle(world_map)
+	world_map._process(0.0)
+	assert_str(world_map.coord_label.text).is_equal("X 103 · Y 100 · zoom 1.0")

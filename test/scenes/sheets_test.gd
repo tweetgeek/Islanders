@@ -83,3 +83,21 @@ func test_upgrade_is_forwarded_and_closes() -> void:
 	s.building_sheet.upgrade_button.pressed.emit()
 	assert_that(got).is_equal([Buildings.Type.TOWN_HALL])
 	assert_bool(s.is_open()).is_false()
+
+
+func test_open_inspect_on_sea_keeps_layer_closed() -> void:
+	var s := _sheets()
+	GameState.apply_world(FixtureCells.world_json())
+	await assert_error(func() -> void: s.open_inspect(FixtureCells.SEA)) \
+		.is_push_error("InspectSheet: %s nie jest wyspą" % FixtureCells.SEA)
+	assert_bool(s.is_open()).is_false()
+
+
+func test_open_inspect_replaces_open_building_sheet() -> void:
+	var s := _sheets()
+	GameState.apply_world(FixtureCells.world_json())
+	s.open_building(_settlement(), Buildings.Type.TOWN_HALL)
+	assert_bool(s.open_inspect(FixtureCells.DEPOSIT)).is_true()
+	assert_object(s.current_sheet()).is_same(s.inspect_sheet)
+	assert_bool(s.building_sheet.visible).is_false()
+	assert_bool(s.inspect_sheet.visible).is_true()
