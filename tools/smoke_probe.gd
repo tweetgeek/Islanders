@@ -9,8 +9,8 @@ const MAIN := preload("res://scenes/views/Main.tscn")
 ## dokładną transformacją roota tuż przed wysłaniem zdarzenia, więc ten sam dystans oznacza
 ## to samo pod headless (malutkie fałszywe okno) i w prawdziwym oknie gry.
 const SEA_DRAG_DELTA := Vector2(-260.0, -180.0)
-## Czysto poziome, żeby cała trasa przeciągnięcia zostawała w wąskim pasku TopBar (wysokość
-## tylko ~96 px viewportu) - inaczej test przypadkiem opuściłby pasek i nie sprawdzałby filtra.
+## Pasek ma teraz ok. 400 px, ale gest zostaje poziomy, żeby na pewno nie opuścić paska
+## i wciąż zaczynać dokładnie na ikonie zasobu.
 const BAR_DRAG_DELTA := Vector2(-150.0, 0.0)
 
 var _frame := 0
@@ -73,10 +73,9 @@ func _viewport_delta_to_window(viewport_delta: Vector2) -> Vector2:
 	return get_tree().root.get_final_transform().basis_xform(viewport_delta)
 
 
-## Środek pierwszej ikony zasobu w pasku HUD (piksele viewportu).
+## Środek ikony drewna w pasku HUD (piksele viewportu).
 func _chip_icon_center(hud: CanvasLayer) -> Vector2:
-	var chip: Control = hud.chips.get_child(0)
-	return (chip.get_child(0) as Control).get_global_rect().get_center()
+	return (hud.icon_of("wood") as Control).get_global_rect().get_center()
 
 
 ## Środek widocznego obszaru viewportu, przesunięty w dół na tyle, żeby zawsze leżeć
@@ -136,9 +135,10 @@ func _process(_delta: float) -> void:
 			_mouse_release(_viewport_to_window(_sea_point() + SEA_DRAG_DELTA))
 			var map := get_node("Main/ViewContainer/WorldMap")
 			_check(map.camera.position != _pan_start, "przeciągnięcie nad otwartym morzem przesuwa mapę")
-		# --- Przeciągnięcie zaczęte dokładnie na ikonie zasobu w pasku HUD. Ikony to ColorRect
-		# tworzone w kodzie, więc mają domyślny mouse_filter = STOP i bez jawnego IGNORE
-		# tworzą martwe strefy 24x24, w których gest nie dochodzi do kamery. ---
+		# --- Przeciągnięcie zaczęte dokładnie na ikonie zasobu w pasku HUD. Sam Icon ignoruje
+		# mysz, ale wszystkie dekoracyjne kontenery wokół niego (karty, wiersze, sam pasek)
+		# muszą mieć jawny mouse_filter, inaczej tworzą martwą strefę, w której gest nie
+		# dochodzi do kamery. ---
 		28:
 			var map := get_node("Main/ViewContainer/WorldMap")
 			_pan_start = map.camera.position
@@ -192,8 +192,8 @@ func _process(_delta: float) -> void:
 			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
 			_check(det != null and det.get_node("Generator").show_deposit, "wyspa niczyja pokazuje znalezisko")
 			var hud := get_node("Main/HUD")
-			_check(hud.name_label.text.begins_with("Koralowa"), "HUD pokazuje osadę aktywną")
-			_check(hud.population_label.text == "42 / 120", "HUD pokazuje populację")
+			_check(hud.settlement_name.text == "Koralowa", "HUD pokazuje osadę aktywną")
+			_check(hud.pop_label.text == "42 / 120", "HUD pokazuje populację")
 			ApiClient.resync()
 		54:
 			_check(GameState.settlements.size() == 3, "resync zachowuje osady")
