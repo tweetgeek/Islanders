@@ -59,3 +59,11 @@ func test_is_arrived_and_remaining() -> void:
 	assert_bool(f.is_arrived(ARRIVE)).is_true()
 	assert_float(f.remaining_seconds(DEPART + 600.0)).is_equal(3000.0)
 	assert_float(f.remaining_seconds(ARRIVE + 600.0)).is_equal(0.0)
+
+
+func test_mission_labels_and_icons_cover_every_mission() -> void:
+	for m in Fleet.MISSIONS:
+		assert_bool(Fleet.MISSION_LABELS.has(m)).override_failure_message("brak etykiety %s" % m).is_true()
+		assert_bool(Fleet.MISSION_ICONS.has(m)).override_failure_message("brak ikony %s" % m).is_true()
+	assert_str(Fleet.MISSION_LABELS["EXPEDITION"]).is_equal("Wyprawa")
+	assert_str(String(Fleet.MISSION_ICONS["ATTACK"])).is_equal("raid")
