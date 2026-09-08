@@ -101,3 +101,36 @@ func test_hash_cell_deterministic_and_positive() -> void:
 	assert_int(h).is_equal(WorldGrid.hash_cell(SEED, Vector2i(5, 7)))
 	assert_int(h).is_greater_equal(0)
 	assert_int(h).is_not_equal(WorldGrid.hash_cell(SEED, Vector2i(7, 5)))
+
+
+## GOLDEN VALUES chroniące ADR 0001: to nie są arbitralne przykłady, tylko dosłowny zapis
+## tego, co dziś produkuje WorldGrid dla seeda SEED. Radius i deposit potrafią dryfować przy
+## zmianie stałej albo kolejności iteracji (np. ResourceTypes.ALL) nawet gdy biom się nie zmienia
+## i inne testy dalej przechodzą - stąd osobne przypięcie. NIE aktualizować tych liczb pod nowe
+## zachowanie bez świadomej decyzji o migracji świata; zmiana tego testu na zielono bez takiej
+## decyzji oznacza, że właśnie zepsuto kontrakt klient-serwer.
+func test_golden_radius_and_deposit_for_fixture_seed() -> void:
+	var a := WorldGrid.island_at(SEED, Vector2i(103, 100))
+	assert_int(a.biome).is_equal(Biome.Type.TROPICAL)
+	assert_float(a.radius).is_equal_approx(107.34186069751175, 0.0000001)
+	assert_that(a.deposit).is_equal({"stone": 527.0})
+
+	var b := WorldGrid.island_at(SEED, Vector2i(94, 100))
+	assert_int(b.biome).is_equal(Biome.Type.VOLCANIC)
+	assert_float(b.radius).is_equal_approx(82.73408613970221, 0.0000001)
+	assert_that(b.deposit).is_equal({})
+
+	var c := WorldGrid.island_at(SEED, Vector2i(95, 100))
+	assert_int(c.biome).is_equal(Biome.Type.TEMPERATE)
+	assert_float(c.radius).is_equal_approx(65.64604776656341, 0.0000001)
+	assert_that(c.deposit).is_equal({})
+
+	var d := WorldGrid.island_at(SEED, Vector2i(91, 97))
+	assert_int(d.biome).is_equal(Biome.Type.VOLCANIC)
+	assert_float(d.radius).is_equal_approx(79.9510342760068, 0.0000001)
+	assert_that(d.deposit).is_equal({"wood": 815.0, "stone": 598.0})
+
+	var e := WorldGrid.island_at(SEED, Vector2i(2, 25))
+	assert_int(e.biome).is_equal(Biome.Type.TEMPERATE)
+	assert_float(e.radius).is_equal_approx(102.35035475167382, 0.0000001)
+	assert_that(e.deposit).is_equal({"sulfur": 532.0})
