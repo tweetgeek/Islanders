@@ -49,7 +49,7 @@ licznik rolujący zasobów, akcje na wyspie (wyprawa, kolonizacja, atak), emoji.
 ### 3.1 `Main.tscn`
 
 ```
-Main (Control, Full Rect, mouse_filter = PASS, theme = MedievalTheme.build())   Main.gd
+Main (Node)                                                                    Main.gd
 ├── SeaBackground (CanvasLayer, layer -100)
 │   └── Sea (ColorRect, Full Rect, mouse_filter = IGNORE, color = MedievalTheme.SEA)
 ├── ViewContainer (Node)                       ← SceneManager wstawia WorldMap albo IslandDetail
@@ -60,6 +60,12 @@ Main (Control, Full Rect, mouse_filter = PASS, theme = MedievalTheme.build())   
 
 Tło morza przenosi się z `WorldMap.tscn` i `IslandDetail.tscn` do `Main`. Oba widoki tracą
 własne `Background`.
+
+`Main` jest zwykłym `Node`, nie `Control`: nie ma własnego `theme`, bo motyw idzie globalnie
+przez `MedievalTheme.install()` (scalenie z domyślnym motywem `ThemeDB`) - `CanvasLayer`
+i `Node2D` i tak przerywają dziedziczenie, więc przypięcie motywu do korzenia by nie działało
+(patrz tabela decyzji w 2). Kolor `Sea` w scenie to tylko podgląd w edytorze; `Main._ready()`
+nadpisuje go `MedievalTheme.SEA`.
 
 `Main._ready()`: wgrywa motyw (`MedievalTheme.install()`), rejestruje kontener, po `state_loaded` woła
 `SceneManager.show_island_detail()` (start w osadzie, nie na mapie), łączy
@@ -144,9 +150,16 @@ WorldMap (Node2D)                                  WorldMap.gd
 - Pamięć kamery: `_exit_tree()` zapisuje `position` i `zoom` do
   `SceneManager.map_camera_state`; `_ready()` odczytuje.
 - Wygląd: woda zostaje w `MedievalTheme.SEA`, siatka w ciemniejszym odcieniu
-  (`SEA.darkened(0.25)`). Etykiety osad: własne `BRASS`, cudze `CREAM_SOFT`, wariacja `Title`.
+  (`SEA.darkened(0.18)` - dokładnie to, co dawał czarny obrys w 18% krycia położony na morzu,
+  ale wyprowadzone z `SEA`, więc przestrojenie morza pociągnie siatkę za sobą).
+  Etykiety osad: własne `BRASS`, cudze `CREAM_SOFT`, wariacja `Title`.
   Pierścień osady w tych samych kolorach. Znacznik znaleziska bez zmian. Mapa nie dostaje
   papierowego tła z mocka: morze jest jedyną ciemną powierzchnią i pozostaje morzem.
+- `MapCamera.tapped` niesie obok pozycji świata także pozycję ekranową, a `_on_tapped`
+  odrzuca tapnięcia powyżej `hud.bar_height()`. Pasek HUD jest przezroczysty dla inputu
+  (żeby dało się z niego przeciągać mapę), więc martwa strefa musi być po stronie odbiorcy;
+  przeciąganie idzie inną drogą i pozostaje nietknięte. `MapCamera` nadal nie wie nic
+  o wyspach ani o HUD.
 - Tap (`_on_tapped`): trafienie w wyspę jak dziś. Własna osada: `set_active_settlement(cell)`
   i `SceneManager.show_island_detail()`. Cudza osada albo wyspa niczyja: `GameState.inspect(cell)`
   i `Sheets.open_inspect(cell)`. `Sheets` nie słucha `inspected_island_changed`; jedna droga.
@@ -291,8 +304,15 @@ HUD (CanvasLayer, layer 10)                                        HUD.gd
 
 - Dane i sygnały bez zmian wobec szkieletu: osada aktywna, `active_settlement_changed`,
   `settlement_updated`, `_process` z `current_resources(TimeUtil.now())`.
-- `Amount`: `TimeUtil.format_thousands`; poniżej 700 px szerokości viewportu
-  `TimeUtil.format_amount` (`1.2k`).
+- `Amount`: zawsze `TimeUtil.format_thousands`. Tryb zwarty (`format_amount`, `1.2k`) miał
+  włączać się poniżej 700 px szerokości viewportu i jest nie do zaimplementowania w tej
+  postaci: przy `canvas_items` + `expand` skala to `min(win.x/1080, win.y/1920)`, a widoczny
+  prostokąt to `okno / skala`, więc widoczna szerokość nigdy nie spada poniżej bazowych
+  1080 px. Gałąź była martwa od początku i została usunięta. Pięć kart na 1080 px canvasu
+  daje etykiecie ok. 123 px przy ok. 117 px potrzebnych na „12 480”, więc pełne liczby się
+  mieszczą. Gdyby przegląd na urządzeniu pokazał ciasnotę, tryb zwarty ma wrócić oparty
+  o coś, co naprawdę się zmienia (np. długość samego napisu), nie o szerokość viewportu.
+  Sam `TimeUtil.format_amount` zostaje: używają go inne miejsca i ma własne testy.
 - `Rate`: `"+%d/h"` z `production_per_hour`. Zasób nieprodukowany (`not produces(r)`):
   `Rate.text = ""`, karta `modulate.a = 0.45`.
 - `PopBar.max_value = max(population_max, 1)`, `value = population`. `PopLabel` w kolorze
@@ -303,6 +323,11 @@ HUD (CanvasLayer, layer 10)                                        HUD.gd
   jako ostatnie dziecko `ProfileRow` z `EXPAND_FILL`; w portrecie wraca do `BarRows` na
   indeks 1.
 - `bar_height() -> float`: `TopBar.offset_top + TopBar.size.y`. Stała `BAR_HEIGHT` znika.
+- `bar_height_changed`: sygnał emitowany przy realnej zmianie wysokości paska, podpięty pod
+  `TopBar.resized`, czyli już po ustaleniu layoutu. Sam `size_changed` nie wystarcza widokom:
+  przepięcie `ResourceGrid` przy obrocie przesortowuje kontener dopiero w fazie layoutu, więc
+  `bar_height()` odczytane w tej samej klatce jest jeszcze sprzed przepięcia. `IslandDetail`
+  i `WorldMap` słuchają obu sygnałów.
 - Licznik rolujący z projektu nie wchodzi.
 
 ## 6. Widok osady: plakietki slotów i arkusz budynku
@@ -327,7 +352,9 @@ sześciokąt, `Label` i `Area2D` z `IslandGenerator._add_slot`.
 
 - `_add_slot` tworzy `SlotPlaque` zamiast poprzednich węzłów. `slot_at(local_pos)` iteruje
   plakietki i używa `contains`. Stałe `SLOT_SIZE`, `SLOT_HIT`, `EMPTY_SLOT_*` znikają.
-- `set_pressed(slot_index, pressed)` do stanu wciśnięcia podczas przytrzymania.
+- `set_pressed(building, pressed)` do stanu wciśnięcia podczas przytrzymania: kluczem jest typ
+  budynku, nie indeks slotu - plakietki i tak są trzymane per typ, więc nie trzeba tłumaczyć
+  indeksu na budynek i z powrotem.
 - Pozycje slotów bez zmian (Town Hall w centrum, reszta na okręgu `radius × SLOT_RING`).
 - `show_slots = false` (mapa): plakietki nie powstają, jak dziś.
 
@@ -428,12 +455,17 @@ FleetsSheet (PanelContainer, Sheet)                             FleetsSheet.gd
         ├── FleetCard × n (cudze, sortowane po arrive_at rosnąco)
         ├── OwnHeader (SectionHeader, "W DRODZE · n")             gdy n > 0
         ├── FleetCard × n (własne, sortowane po arrive_at rosnąco)
-        └── EmptyLabel (Caption, "Żadna flota nie jest w drodze.")  gdy obie listy puste
+        └── EmptyLabel (Label, "Żadna flota nie jest w drodze.")   gdy obie listy puste
 ```
 
+- `EmptyLabel` jest bazowym `Label`, nie wariacją `Caption`: `Caption` to `CREAM_SOFT`,
+  a na pergaminie arkusza byłby prawie niewidoczny.
 - `refresh()` przy otwarciu i po `fleets_updated`: buduje listę z `GameState.fleets`,
-  pomijając `is_arrived(now)`. Karty odświeżane w `_process` co 1 s (akumulator), tylko gdy
-  arkusz widoczny.
+  pomijając `is_arrived(now)`. `_process` co 1 s (akumulator) i tylko gdy arkusz widoczny:
+  jeśli któraś z wystawionych flot zdążyła przybyć, woła `refresh()` (sam tik nie poprawiłby
+  podziału na sekcje ani liczb w nagłówkach, a odznaka docku liczy się od nowa - arkusz
+  i odznaka nie mogą mówić czego innego); w przeciwnym razie odświeża w kartach tylko to,
+  co zmienia się z czasem, czyli odliczanie i pasek postępu.
 - `FleetCard.tapped` → `Sheets.close()` i `SceneManager.show_world_map_at(fleet.position_at(now))`.
 - Sekcja „floty bezczynne” nie wchodzi.
 
@@ -471,7 +503,8 @@ FleetsSheet (PanelContainer, Sheet)                             FleetsSheet.gd
 - `test/scenes/sheets_test.gd` (nowy): `open_inspect` na morzu nie otwiera; `open_fleets`
   potem `close` kończy na `visible = false` (po `await` tweena); `view_changed` zamyka;
   drugie otwarcie przy otwartym zostawia dokładnie jeden widoczny arkusz.
-- `tools/smoke_probe.gd`: nowy przepływ. Start: widok osady, `Main.theme != null`, HUD
+- `tools/smoke_probe.gd`: nowy przepływ. Start: widok osady, wariacja motywu obecna
+  w `ThemeDB.get_default_theme()` (motyw idzie globalnie, `Main` nie ma własnego `theme`), HUD
   pokazuje „Koralowa”. `MapButton` → mapa. Tap cudzej osady → `InspectSheet` widoczny;
   tap backdropu → zamknięty. Przeciągnięcie po otwartym arkuszu nie zmienia `camera.position`.
   Tap własnej osady → widok osady. Tap slotu Town Hall → `BuildingSheet` z „LV 1”.
