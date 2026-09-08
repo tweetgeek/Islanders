@@ -93,6 +93,11 @@ func _process(delta: float) -> void:
 		_clamp_position()
 
 
+## Zoom wokół środka ekranu (przyciski + / − na mapie).
+func zoom_by(factor: float) -> void:
+	_zoom_at(get_viewport_rect().size / 2.0, factor)
+
+
 func _zoom_at(screen_pos: Vector2, factor: float) -> void:
 	var before := screen_to_world(screen_pos)
 	var z := clampf(zoom.x * factor, ZOOM_MIN, ZOOM_MAX)

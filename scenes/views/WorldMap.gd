@@ -22,12 +22,29 @@ func _ready() -> void:
 	camera.tapped.connect(_on_tapped)
 	GameState.settlement_updated.connect(_on_settlement_updated)
 	GameState.fleets_updated.connect(fleets.refresh)
-	if GameState.active_settlement != null:
+	var saved: Dictionary = SceneManager.map_camera_state
+	if saved.has("position"):
+		camera.position = saved["position"]
+	elif GameState.active_settlement != null:
 		camera.position = WorldGrid.cell_to_world(GameState.active_settlement.coord)
+	if saved.has("zoom"):
+		camera.zoom = saved["zoom"]
 	if GameState.world != null:
 		camera.set_bounds(Rect2(Vector2.ZERO, Vector2(GameState.world.size) * WorldGrid.CELL_SIZE))
 	_rebuild_labels()
 	_refresh_chunks()
+
+
+func _exit_tree() -> void:
+	SceneManager.map_camera_state["position"] = camera.position
+	SceneManager.map_camera_state["zoom"] = camera.zoom
+
+
+## Natychmiastowy skok kamery (arkusz flot). Zeruje inercję, żeby kamera nie odjechała.
+func focus(world_pos: Vector2) -> void:
+	camera.position = world_pos
+	camera._velocity = Vector2.ZERO
+	camera._clamp_position()
 
 
 func _process(delta: float) -> void:

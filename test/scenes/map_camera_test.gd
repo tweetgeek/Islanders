@@ -48,6 +48,14 @@ func test_small_world_is_centered() -> void:
 	assert_that(cam.position).is_equal(Vector2(50, 50))
 
 
+func test_zoom_by_keeps_screen_center() -> void:
+	var cam := _camera()
+	cam.position = Vector2(500, 500)
+	cam.zoom_by(1.25)
+	assert_float(cam.zoom.x).is_equal_approx(1.25, 0.001)
+	assert_that(cam.position).is_equal_approx(Vector2(500, 500), Vector2(0.01, 0.01))
+
+
 func test_second_touch_clears_drag_velocity() -> void:
 	var cam := _camera()
 	var touch0 := InputEventScreenTouch.new()

@@ -17,10 +17,12 @@ const START_POS := Vector2(200000.0, 200000.0)
 
 func before_test() -> void:
 	GameState.reset()
+	SceneManager.map_camera_state.clear()
 
 
 func after_test() -> void:
 	GameState.reset()
+	SceneManager.map_camera_state.clear()
 
 
 func _chunk_world_size() -> float:
@@ -104,6 +106,37 @@ func _still_parented(container: Node, node) -> bool:
 	if not is_instance_valid(node):
 		return false
 	return (node as Node).get_parent() == container
+
+
+func test_map_saves_camera_state_on_exit_and_restores_it() -> void:
+	_apply_world()
+	SceneManager.map_camera_state.clear()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	var camera: MapCamera = world_map.camera
+	camera.position = START_POS + Vector2(1234.0, 567.0)
+	camera.zoom = Vector2(0.5, 0.5)
+	var saved_pos := camera.position
+	remove_child(world_map)
+	assert_that(SceneManager.map_camera_state.get("position")).is_equal(saved_pos)
+	assert_that(SceneManager.map_camera_state.get("zoom")).is_equal(Vector2(0.5, 0.5))
+
+	var again := _spawn_map(Vector2.ZERO)
+	await _settle(again)
+	assert_that((again.camera as MapCamera).position).is_equal(saved_pos)
+	assert_that((again.camera as MapCamera).zoom).is_equal(Vector2(0.5, 0.5))
+	SceneManager.map_camera_state.clear()
+
+
+func test_focus_moves_camera_and_kills_inertia() -> void:
+	_apply_world()
+	SceneManager.map_camera_state.clear()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	var target := START_POS + Vector2(5000.0, -3000.0)
+	world_map.focus(target)
+	assert_that((world_map.camera as MapCamera).position).is_equal(target)
+	assert_that((world_map.camera as MapCamera)._velocity).is_equal(Vector2.ZERO)
 
 
 func test_loaded_chunks_match_visible_area_with_margin_after_opening_map() -> void:
