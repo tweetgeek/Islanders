@@ -133,10 +133,13 @@ func test_focus_moves_camera_and_kills_inertia() -> void:
 	SceneManager.map_camera_state.clear()
 	var world_map := _spawn_map(START_POS)
 	await _settle(world_map)
+	var camera: MapCamera = world_map.camera
+	# Bez nadania pędu test przechodziłby także wtedy, gdyby focus() w ogóle nie ruszał _velocity.
+	camera._velocity = Vector2(900.0, -450.0)
 	var target := START_POS + Vector2(5000.0, -3000.0)
 	world_map.focus(target)
-	assert_that((world_map.camera as MapCamera).position).is_equal(target)
-	assert_that((world_map.camera as MapCamera)._velocity).is_equal(Vector2.ZERO)
+	assert_that(camera.position).is_equal(target)
+	assert_that(camera._velocity).is_equal(Vector2.ZERO)
 
 
 func test_loaded_chunks_match_visible_area_with_margin_after_opening_map() -> void:
