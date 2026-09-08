@@ -38,6 +38,32 @@ const EXTRACTS := {
 	Type.SULFUR_PIT: "sulfur",
 }
 
+## Budynek wspólny -> Icon.kind; budynki wydobywcze używają ikony swojego zasobu (patrz icon()).
+const ICONS := {
+	Type.TOWN_HALL: &"town_hall",
+	Type.BARRACKS: &"barracks",
+	Type.SHIPYARD: &"shipyard",
+	Type.WAREHOUSE: &"warehouse",
+}
+
+const DESCRIPTIONS := {
+	Type.TOWN_HALL: "Serce osady. Wyższy poziom podnosi limit poziomów pozostałych budynków.",
+	Type.BARRACKS: "Szkoli jednostki lądowe do garnizonu osady.",
+	Type.SHIPYARD: "Buduje statki. Każdy poziom przyspiesza budowę i odblokowuje większe kadłuby.",
+	Type.WAREHOUSE: "Wyznacza pojemność magazynu dla każdego zasobu. Nadwyżka ponad limit przepada.",
+	Type.SAWMILL: "Pozyskuje drewno z lasów wyspy.",
+	Type.QUARRY: "Wydobywa kamień z nadbrzeżnych skał.",
+	Type.FARM: "Uprawia tarasowe pola i dostarcza jedzenie.",
+	Type.IRON_MINE: "Wydobywa żelazo z wulkanicznych żył.",
+	Type.SULFUR_PIT: "Zbiera siarkę z fumaroli na zboczach wulkanu.",
+}
+
+
+static func icon(t: Type) -> StringName:
+	if EXTRACTS.has(t):
+		return ResourceTypes.ICONS[EXTRACTS[t]]
+	return ICONS[t]
+
 
 static func key(t: Type) -> String:
 	return KEYS[t]

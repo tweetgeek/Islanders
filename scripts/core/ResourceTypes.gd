@@ -20,6 +20,15 @@ const LABELS := {
 	"sulfur": "Siarka",
 }
 
+## Zasób -> Icon.kind
+const ICONS := {
+	"wood": &"wood",
+	"stone": &"stone",
+	"food": &"food",
+	"iron": &"iron",
+	"sulfur": &"sulfur",
+}
+
 
 static func is_valid(key: String) -> bool:
 	return ALL.has(key)
