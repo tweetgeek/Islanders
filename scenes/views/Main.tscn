@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/views/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/Sheets.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/Dock.tscn" id="4"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1")
@@ -22,5 +23,7 @@ color = Color(0.0902, 0.2196, 0.2392, 1)
 [node name="ViewContainer" type="Node" parent="."]
 
 [node name="HUD" parent="." instance=ExtResource("2")]
+
+[node name="Dock" parent="." instance=ExtResource("4")]
 
 [node name="Sheets" parent="." instance=ExtResource("3")]

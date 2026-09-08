@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/Sheets.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/BuildingSheet.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/InspectSheet.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/FleetsSheet.tscn" id="4"]
 
 [node name="Sheets" type="CanvasLayer" groups=["sheets"]]
 layer = 12
@@ -17,6 +18,8 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
 color = Color(0.08, 0.04, 0, 0.55)
+
+[node name="FleetsSheet" parent="." instance=ExtResource("4")]
 
 [node name="InspectSheet" parent="." instance=ExtResource("3")]
 

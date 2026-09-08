@@ -14,6 +14,7 @@ const HEIGHT_BUILDING := 0.5
 @onready var backdrop: ColorRect = $Backdrop
 @onready var building_sheet: BuildingSheet = $BuildingSheet
 @onready var inspect_sheet: InspectSheet = $InspectSheet
+@onready var fleets_sheet: FleetsSheet = $FleetsSheet
 
 var _current: Control = null
 var _current_fraction := 0.0
@@ -27,6 +28,7 @@ func _ready() -> void:
 		s.hide()
 		s.close_requested.connect(close)
 	building_sheet.upgrade_requested.connect(_on_upgrade_requested)
+	fleets_sheet.fleet_tapped.connect(_on_fleet_tapped)
 	SceneManager.view_changed.connect(func(_path: String) -> void: _hide_now())
 	get_viewport().size_changed.connect(_relayout)
 
@@ -48,12 +50,8 @@ func current_sheet() -> Control:
 
 
 func open_fleets() -> void:
-	var sheet := get_node_or_null("FleetsSheet")
-	if sheet == null:
-		push_warning("Sheets: FleetsSheet jeszcze nie istnieje")
-		return
-	sheet.refresh()
-	_open(sheet, HEIGHT_FLEETS)
+	fleets_sheet.refresh()
+	_open(fleets_sheet, HEIGHT_FLEETS)
 
 
 func open_inspect(coord: Vector2i) -> bool:
@@ -146,3 +144,9 @@ func _on_backdrop_input(event: InputEvent) -> void:
 
 func _on_upgrade_requested(coord: Vector2i, building: int) -> void:
 	upgrade_requested.emit(coord, building)
+
+
+## Tap w kartę: arkusz znika, mapa otwiera się na pozycji floty (view_changed zamknie warstwę od razu).
+func _on_fleet_tapped(fleet: Fleet) -> void:
+	close()
+	SceneManager.show_world_map_at(fleet.position_at(TimeUtil.now()))

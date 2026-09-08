@@ -101,3 +101,10 @@ func test_open_inspect_replaces_open_building_sheet() -> void:
 	assert_object(s.current_sheet()).is_same(s.inspect_sheet)
 	assert_bool(s.building_sheet.visible).is_false()
 	assert_bool(s.inspect_sheet.visible).is_true()
+
+
+func test_open_fleets_shows_fleets_sheet() -> void:
+	var s := _sheets()
+	s.open_fleets()
+	assert_object(s.current_sheet()).is_same(s.fleets_sheet)
+	assert_bool(s.fleets_sheet.visible).is_true()
