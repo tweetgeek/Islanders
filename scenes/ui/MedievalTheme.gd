@@ -218,7 +218,7 @@ static func build() -> Theme:
 	t.set_color("caret_color", "LineEdit", SECTION)
 	t.set_stylebox("panel", "ScrollContainer", StyleBoxEmpty.new())
 	t.set_stylebox("separator", "HSeparator", flat(OAK_EDGE, OAK_EDGE, 0, 0, 0, 0))
-	t.set_constant("separation", "HSeparator", 1)
+	t.set_constant("separation", "HSeparator", px(1))
 	t.set_constant("separation", "VBoxContainer", px(9))
 	t.set_constant("separation", "HBoxContainer", px(6))
 	return t
