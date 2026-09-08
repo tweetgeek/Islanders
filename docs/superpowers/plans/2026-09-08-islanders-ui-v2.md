@@ -20,6 +20,16 @@
 - `scripts/core/` nie zależy od żadnego autoloadu ani węzła.
 - Każde zadanie kończy się zielonym `./run_tests.sh` dla wskazanych plików i (od Task 4) zielonym `./run_smoke.sh`.
 - Commity po polsku lub angielsku, jak w historii repo; treść zwięzła, z opisem „dlaczego”.
+- Każdy commit kończy się stopką:
+  ```
+  Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+  Claude-Session: https://claude.ai/code/session_01TqfePPRx93prY96Z6atQZq
+  ```
+- Komórki świata w testach i w smoke teście biorą się wyłącznie z `test/FixtureCells.gd`
+  (`HOME`, `OWN_SECOND`, `FOREIGN`, `DEPOSIT`, `SEA`). Żadnych literałów w rodzaju
+  `Vector2i(103, 100)` w nowym kodzie testowym. Powód: w głównym worktree trwa praca nad
+  parytetem `WorldGrid` z backendem, która przesuwa wszystkie komórki fixtures; jeden plik
+  sprawia, że późniejszy merge to jedna poprawka.
 
 ## Odstępstwa od specu (uzasadnione w trakcie planowania)
 
@@ -53,6 +63,7 @@
 | `scenes/views/WorldMap.tscn/.gd`, `MapCamera.gd`, `Water.gd` | mapa z warstwą UI, pamięć kamery, `focus`, `zoom_by` |
 | `scenes/autoload/SceneManager.gd` | `map_camera_state`, `show_world_map_at`, fade |
 | `scripts/core/TimeUtil.gd`, `Fleet.gd`, `Buildings.gd`, `ResourceTypes.gd` | `format_thousands`, `MISSION_*`, `ICONS`, `DESCRIPTIONS` |
+| `test/FixtureCells.gd` | komórki świata dla testów i smoke testu (jedno źródło prawdy) |
 | `tools/smoke_probe.gd` | smoke test nowego przepływu |
 
 ---
@@ -1085,6 +1096,7 @@ git commit -m "Install the theme globally, move the sea to Main, add SafeArea he
 ### Task 5: Górny pasek HUD w nowej szacie
 
 **Files:**
+- Create: `test/FixtureCells.gd`
 - Modify: `scenes/ui/HUD.tscn` (całość), `scenes/ui/HUD.gd` (całość), `tools/smoke_probe.gd:76-79,194-196`
 - Test: `test/scenes/hud_test.gd`, `./run_smoke.sh`
 
@@ -1092,7 +1104,40 @@ git commit -m "Install the theme globally, move the sea to Main, add SafeArea he
 - Consumes: `Icon`, `MedievalTheme.px`, `SafeArea.top_inset`, `TimeUtil.format_thousands`, `ResourceTypes.ICONS`, `Settlement.produces`, `GameState.active_settlement_changed`, `settlement_updated`.
 - Produces: HUD w grupie `hud`; pola `top_bar`, `settlement_name: Label`, `biome_badge: Label`, `subtitle: Label`, `gold_label: Label`, `pop_bar: ProgressBar`, `pop_label: Label`, `cards: Dictionary` (zasób → `PanelContainer`), `func icon_of(resource: String) -> Icon`, `func amount_of(resource: String) -> Label`, `func rate_of(resource: String) -> Label`, `func bar_height() -> float`.
 
-- [ ] **Step 1: Test HUD**
+- [ ] **Step 1: Wspólne komórki testowe**
+
+`test/FixtureCells.gd`:
+
+```gdscript
+class_name FixtureCells
+extends RefCounted
+
+## Komórki świata używane przez testy i smoke test; zgodne z fixtures/*.json i WorldGrid
+## dla ziarna 1337. Jedyne miejsce definicji: zmiana algorytmu WorldGrid albo fixtures
+## wymaga poprawki tylko tutaj.
+
+const WORLD_SEED := 1337
+## Osada domowa gracza (Koralowa, TROPICAL).
+const HOME := Vector2i(103, 100)
+## Druga własna osada (Popielna, VOLCANIC).
+const OWN_SECOND := Vector2i(94, 100)
+## Cudza osada (Szara Skała, gracz 9).
+const FOREIGN := Vector2i(95, 100)
+## Wyspa niczyja ze znaleziskiem.
+const DEPOSIT := Vector2i(95, 98)
+## Komórka morza.
+const SEA := Vector2i(100, 100)
+
+
+## Słownik world dla apply_world w testach.
+static func world_json() -> Dictionary:
+	return {
+		"id": "w1", "seed": WORLD_SEED, "size": {"w": 200, "h": 200},
+		"playerId": 7, "homeSettlement": {"x": HOME.x, "y": HOME.y},
+	}
+```
+
+- [ ] **Step 2: Test HUD**
 
 `test/scenes/hud_test.gd`:
 
@@ -1100,16 +1145,12 @@ git commit -m "Install the theme globally, move the sea to Main, add SafeArea he
 extends GdUnitTestSuite
 
 const HUD_SCENE := preload("res://scenes/ui/HUD.tscn")
-## (103, 100) to ląd TROPICAL dla ziarna 1337 (jak w world_map_test.gd).
-const HOME := Vector2i(103, 100)
+const HOME := FixtureCells.HOME
 
 
 func before_test() -> void:
 	GameState.reset()
-	GameState.apply_world({
-		"id": "w1", "seed": 1337, "size": {"w": 200, "h": 200},
-		"playerId": 7, "homeSettlement": {"x": HOME.x, "y": HOME.y},
-	})
+	GameState.apply_world(FixtureCells.world_json())
 	GameState.apply_settlements([{
 		"x": HOME.x, "y": HOME.y, "ownerId": 7, "name": "Koralowa",
 		"resources": {"wood": 12480, "food": 300},
@@ -1134,7 +1175,7 @@ func test_profile_row_shows_active_settlement() -> void:
 	var hud := _hud()
 	assert_str(hud.settlement_name.text).is_equal("Koralowa")
 	assert_str(hud.biome_badge.text).is_equal("TROPICAL")
-	assert_str(hud.subtitle.text).is_equal("Świat w1 · (103, 100)")
+	assert_str(hud.subtitle.text).is_equal("Świat w1 · (%d, %d)" % [HOME.x, HOME.y])
 	assert_str(hud.gold_label.text).is_equal("0")
 
 
@@ -1171,13 +1212,13 @@ func test_is_in_hud_group_and_reports_height() -> void:
 	assert_float(hud.bar_height()).is_greater(0.0)
 ```
 
-- [ ] **Step 2: Uruchom, oczekuj błędów** (`settlement_name` nie istnieje)
+- [ ] **Step 3: Uruchom, oczekuj błędów** (`settlement_name` nie istnieje)
 
 ```bash
 ./run_tests.sh test/scenes/hud_test.gd
 ```
 
-- [ ] **Step 3: Przepisz `scenes/ui/HUD.tscn`**
+- [ ] **Step 4: Przepisz `scenes/ui/HUD.tscn`**
 
 ```
 [gd_scene load_steps=3 format=3]
@@ -1283,7 +1324,7 @@ theme_type_variation = &"Amount"
 
 Uwaga: `GoldLabel` w wariacji `Amount` ma kolor `INK` na tle `OAK_DEEP`; w `_ready` nadpisujemy kolor na `CREAM` (patrz skrypt).
 
-- [ ] **Step 4: Przepisz `scenes/ui/HUD.gd`**
+- [ ] **Step 5: Przepisz `scenes/ui/HUD.gd`**
 
 ```gdscript
 extends CanvasLayer
@@ -1468,7 +1509,7 @@ func _apply_orientation() -> void:
 		resource_grid.size_flags_horizontal = Control.SIZE_FILL
 ```
 
-- [ ] **Step 5: Dostosuj smoke probe** (`tools/smoke_probe.gd`)
+- [ ] **Step 6: Dostosuj smoke probe** (`tools/smoke_probe.gd`)
 
 Zamień `_chip_icon_center`:
 
@@ -1487,7 +1528,7 @@ W klatce `49` zamień dwie linie HUD na:
 
 Zaktualizuj komentarz przy `BAR_DRAG_DELTA` (pasek ma teraz ok. 400 px, ale gest zostaje poziomy, żeby na pewno nie opuścić paska).
 
-- [ ] **Step 6: Uruchom testy i smoke**
+- [ ] **Step 7: Uruchom testy i smoke**
 
 ```bash
 ./run_tests.sh test/scenes/hud_test.gd
@@ -1496,10 +1537,10 @@ Zaktualizuj komentarz przy `BAR_DRAG_DELTA` (pasek ma teraz ok. 400 px, ale gest
 
 Oczekiwane: 5 testów zielonych, `SMOKE PASSED`. Jeśli `bar_height()` w teście zwraca 0, dodaj drugi `await await_idle_frame()`: kontener liczy rozmiar w pierwszej klatce po dodaniu.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add scenes/ui/HUD.tscn scenes/ui/HUD.gd tools/smoke_probe.gd test/scenes/hud_test.gd test/scenes/hud_test.gd.uid
+git add test/FixtureCells.gd test/FixtureCells.gd.uid scenes/ui/HUD.tscn scenes/ui/HUD.gd tools/smoke_probe.gd test/scenes/hud_test.gd test/scenes/hud_test.gd.uid
 git commit -m "Restyle the HUD top bar: profile row, five resource cards, population bar"
 ```
 
@@ -1998,7 +2039,7 @@ const SHEET := preload("res://scenes/ui/BuildingSheet.tscn")
 
 func _settlement() -> Settlement:
 	return Settlement.from_json({
-		"x": 103, "y": 100, "ownerId": 7, "name": "Koralowa",
+		"x": FixtureCells.HOME.x, "y": FixtureCells.HOME.y, "ownerId": 7, "name": "Koralowa",
 		"resources": {"wood": 100}, "buildings": {"TOWN_HALL": 1, "SAWMILL": 2},
 	}, Biome.Type.TROPICAL)
 
@@ -2066,7 +2107,7 @@ func test_upgrade_emits_coord_and_building() -> void:
 	var got: Array = []
 	s.upgrade_requested.connect(func(c: Vector2i, b: int) -> void: got.append([c, b]))
 	s.upgrade_button.pressed.emit()
-	assert_that(got).is_equal([[Vector2i(103, 100), Buildings.Type.SAWMILL]])
+	assert_that(got).is_equal([[FixtureCells.HOME, Buildings.Type.SAWMILL]])
 ```
 
 `test/scenes/sheets_test.gd`:
@@ -2093,7 +2134,8 @@ func _sheets() -> CanvasLayer:
 
 func _settlement() -> Settlement:
 	return Settlement.from_json({
-		"x": 103, "y": 100, "ownerId": 7, "name": "Koralowa", "resources": {},
+		"x": FixtureCells.HOME.x, "y": FixtureCells.HOME.y, "ownerId": 7, "name": "Koralowa",
+		"resources": {},
 	}, Biome.Type.TROPICAL)
 
 
@@ -2897,19 +2939,14 @@ git commit -m "Add bottom sheets with BuildingSheet; settlement view shows only 
 extends GdUnitTestSuite
 
 const SHEET := preload("res://scenes/ui/InspectSheet.tscn")
-## Dla ziarna 1337: (95, 100) ląd z cudzą osadą w fixtures, (95, 98) ląd ze znaleziskiem,
-## (100, 100) morze (patrz game_state_test.gd i smoke_probe.gd).
-const FOREIGN := Vector2i(95, 100)
-const EMPTY_WITH_DEPOSIT := Vector2i(95, 98)
-const SEA := Vector2i(100, 100)
+const FOREIGN := FixtureCells.FOREIGN
+const EMPTY_WITH_DEPOSIT := FixtureCells.DEPOSIT
+const SEA := FixtureCells.SEA
 
 
 func before_test() -> void:
 	GameState.reset()
-	GameState.apply_world({
-		"id": "w1", "seed": 1337, "size": {"w": 200, "h": 200},
-		"playerId": 7, "homeSettlement": {"x": 103, "y": 100},
-	})
+	GameState.apply_world(FixtureCells.world_json())
 	GameState.apply_settlements([{"x": FOREIGN.x, "y": FOREIGN.y, "ownerId": 9, "name": "Szara Skała"}])
 
 
@@ -2927,7 +2964,7 @@ func test_foreign_settlement_shows_public_data() -> void:
 	var s := _sheet()
 	assert_bool(s.open(FOREIGN)).is_true()
 	assert_str(s.name_label.text).is_equal("Szara Skała")
-	assert_str(s.subtitle.text).is_equal("(95, 100) · gracz 9")
+	assert_str(s.subtitle.text).is_equal("(%d, %d) · gracz 9" % [FOREIGN.x, FOREIGN.y])
 	assert_str(s.biome_badge.text).is_equal(Biome.key(GameState.island_at(FOREIGN).biome))
 	assert_bool(s.public_label.visible).is_true()
 	assert_bool(s.deposit_header.visible).is_false()
@@ -2940,8 +2977,8 @@ func test_unowned_island_with_deposit_lists_chips() -> void:
 	assert_bool(island.has_deposit()).is_true()
 	var s := _sheet()
 	assert_bool(s.open(EMPTY_WITH_DEPOSIT)).is_true()
-	assert_str(s.name_label.text).is_equal("Wyspa (95, 98)")
-	assert_str(s.subtitle.text).is_equal("(95, 98) · wyspa niczyja")
+	assert_str(s.name_label.text).is_equal("Wyspa (%d, %d)" % [EMPTY_WITH_DEPOSIT.x, EMPTY_WITH_DEPOSIT.y])
+	assert_str(s.subtitle.text).is_equal("(%d, %d) · wyspa niczyja" % [EMPTY_WITH_DEPOSIT.x, EMPTY_WITH_DEPOSIT.y])
 	assert_bool(s.deposit_header.visible).is_true()
 	assert_int(s.deposit_row.get_child_count()).is_equal(island.deposit.size())
 	assert_bool(s.public_label.visible).is_false()
@@ -2949,7 +2986,7 @@ func test_unowned_island_with_deposit_lists_chips() -> void:
 
 func test_sea_is_rejected() -> void:
 	var s := _sheet()
-	await assert_error(func() -> void: s.open(SEA)).is_push_error("InspectSheet: (100, 100) nie jest wyspą")
+	await assert_error(func() -> void: s.open(SEA)).is_push_error("InspectSheet: %s nie jest wyspą" % SEA)
 ```
 
 Dopisz do `test/scenes/sheets_test.gd`:
@@ -2957,23 +2994,17 @@ Dopisz do `test/scenes/sheets_test.gd`:
 ```gdscript
 func test_open_inspect_on_sea_keeps_layer_closed() -> void:
 	var s := _sheets()
-	GameState.apply_world({
-		"id": "w1", "seed": 1337, "size": {"w": 200, "h": 200},
-		"playerId": 7, "homeSettlement": {"x": 103, "y": 100},
-	})
-	await assert_error(func() -> void: s.open_inspect(Vector2i(100, 100))) \
-		.is_push_error("InspectSheet: (100, 100) nie jest wyspą")
+	GameState.apply_world(FixtureCells.world_json())
+	await assert_error(func() -> void: s.open_inspect(FixtureCells.SEA)) \
+		.is_push_error("InspectSheet: %s nie jest wyspą" % FixtureCells.SEA)
 	assert_bool(s.is_open()).is_false()
 
 
 func test_open_inspect_replaces_open_building_sheet() -> void:
 	var s := _sheets()
-	GameState.apply_world({
-		"id": "w1", "seed": 1337, "size": {"w": 200, "h": 200},
-		"playerId": 7, "homeSettlement": {"x": 103, "y": 100},
-	})
+	GameState.apply_world(FixtureCells.world_json())
 	s.open_building(_settlement(), Buildings.Type.TOWN_HALL)
-	assert_bool(s.open_inspect(Vector2i(95, 98))).is_true()
+	assert_bool(s.open_inspect(FixtureCells.DEPOSIT)).is_true()
 	assert_object(s.current_sheet()).is_same(s.inspect_sheet)
 	assert_bool(s.building_sheet.visible).is_false()
 	assert_bool(s.inspect_sheet.visible).is_true()
@@ -3457,10 +3488,7 @@ const SHEET := preload("res://scenes/ui/FleetsSheet.tscn")
 
 func before_test() -> void:
 	GameState.reset()
-	GameState.apply_world({
-		"id": "w1", "seed": 1337, "size": {"w": 200, "h": 200},
-		"playerId": 7, "homeSettlement": {"x": 103, "y": 100},
-	})
+	GameState.apply_world(FixtureCells.world_json())
 
 
 func after_test() -> void:
@@ -3528,10 +3556,7 @@ const DOCK := preload("res://scenes/ui/Dock.tscn")
 
 func before_test() -> void:
 	GameState.reset()
-	GameState.apply_world({
-		"id": "w1", "seed": 1337, "size": {"w": 200, "h": 200},
-		"playerId": 7, "homeSettlement": {"x": 103, "y": 100},
-	})
+	GameState.apply_world(FixtureCells.world_json())
 
 
 func after_test() -> void:
@@ -4192,7 +4217,7 @@ func _process(_delta: float) -> void:
 			_check(_map().camera.position != _pan_start, "przeciągnięcie na ikonie zasobu przesuwa mapę")
 		# --- Tap cudzej osady otwiera arkusz inspekcji; gest na arkuszu nie rusza mapy. ---
 		48:
-			_map().camera.position = WorldGrid.cell_to_world(Vector2i(95, 100))
+			_map().camera.position = WorldGrid.cell_to_world(FixtureCells.FOREIGN)
 			_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		50:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
@@ -4214,7 +4239,7 @@ func _process(_delta: float) -> void:
 			_mouse_release(at)
 		60:
 			_check(not _sheets().is_open(), "backdrop zamyka arkusz inspekcji")
-			_map().camera.position = WorldGrid.cell_to_world(Vector2i(95, 98))
+			_map().camera.position = WorldGrid.cell_to_world(FixtureCells.DEPOSIT)
 			_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		62:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
@@ -4224,7 +4249,7 @@ func _process(_delta: float) -> void:
 			sheets.close()
 		# --- Tap własnej osady wraca do widoku osady. ---
 		68:
-			_map().camera.position = WorldGrid.cell_to_world(Vector2i(103, 100))
+			_map().camera.position = WorldGrid.cell_to_world(FixtureCells.HOME)
 			_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		70:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
