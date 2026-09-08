@@ -43,13 +43,6 @@ const COLORS := {
 	},
 }
 
-## Tylko dla MockProvider i placeholderów; prawdziwa produkcja przychodzi z serwera.
-const MOCK_PRODUCTION := {
-	Type.TROPICAL: {"wood": 120.0, "food": 200.0},
-	Type.TEMPERATE: {"stone": 100.0, "food": 150.0},
-	Type.VOLCANIC: {"iron": 60.0, "sulfur": 40.0},
-}
-
 
 static func key(b: Type) -> String:
 	return KEYS[b]
@@ -84,7 +77,3 @@ static func slots(b: Type) -> Array:
 
 static func colors(b: Type) -> Dictionary:
 	return COLORS[b]
-
-
-static func mock_production(b: Type) -> Dictionary:
-	return ResourceTypes.normalize(MOCK_PRODUCTION[b])

@@ -22,13 +22,6 @@ func test_unknown_biome_falls_back_to_temperate() -> void:
 	assert_int(Biome.from_key("VOLCANIC")).is_equal(Biome.Type.VOLCANIC)
 
 
-func test_mock_production_has_all_five_keys() -> void:
-	var p := Biome.mock_production(Biome.Type.TROPICAL)
-	assert_int(p.size()).is_equal(5)
-	assert_float(p["wood"]).is_greater(0.0)
-	assert_float(p["iron"]).is_equal(0.0)
-
-
 func test_resource_types_normalize_drops_unknown_keys() -> void:
 	var d := ResourceTypes.normalize({"wood": 5, "gold": 9})
 	assert_int(d.size()).is_equal(5)
