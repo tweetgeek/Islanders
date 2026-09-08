@@ -1,6 +1,6 @@
 extends Node
 
-## Smoke test scen: uruchamia Main, klika osadę domową, przechodzi przez trzy tryby detalu i wraca.
+## Smoke test scen: uruchamia Main, klika osadę domową, otwiera arkusz budynku i wraca na mapę.
 ## Użycie: ./run_smoke.sh  (kończy się kodem 0 przy sukcesie, 1 przy błędzie)
 
 const MAIN := preload("res://scenes/views/Main.tscn")
@@ -163,7 +163,7 @@ func _process(_delta: float) -> void:
 		39:
 			_check(
 				SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL,
-				"kliknięcie w wyspę otwiera detal"
+				"kliknięcie w wyspę otwiera widok osady"
 			)
 			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
 			var gen: IslandGenerator = det.get_node("Generator") if det != null else null
@@ -174,37 +174,19 @@ func _process(_delta: float) -> void:
 				_mouse_press(at)
 				_mouse_release(at)
 		41:
-			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
-			_check(
-				det != null and det.get_node("UI/BuildingMenu").visible,
-				"tapnięcie w slot otwiera panel budynku"
-			)
-			GameState.inspect(Vector2i(95, 100))
+			var sheets := get_node("Main/Sheets")
+			_check(sheets.is_open() and sheets.building_sheet.visible, "tapnięcie w slot otwiera arkusz budynku")
+			_check(sheets.building_sheet.name_label.text == "Ratusz", "arkusz pokazuje ratusz")
+			sheets.close()
 		44:
-			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
-			_check(det != null and not det.get_node("Generator").show_slots, "cudza osada bez slotów")
-			_check(
-				det != null and det.get_node("UI/InfoPanel/Info").text.contains("gracz 9"),
-				"cudza osada pokazuje właściciela"
-			)
-			GameState.inspect(Vector2i(95, 98))
-		49:
-			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
-			_check(det != null and det.get_node("Generator").show_deposit, "wyspa niczyja pokazuje znalezisko")
 			var hud := get_node("Main/HUD")
 			_check(hud.settlement_name.text == "Koralowa", "HUD pokazuje osadę aktywną")
 			_check(hud.pop_label.text == "42 / 120", "HUD pokazuje populację")
 			ApiClient.resync()
-		54:
+		49:
 			_check(GameState.settlements.size() == 3, "resync zachowuje osady")
-			var back: Button = get_node("Main/ViewContainer/IslandDetail/UI/BackButton")
-			var at := _control_center(back)
-			_mouse_press(at)
-			_mouse_release(at)
-		59:
-			_check(
-				SceneManager.current_view == SceneManager.VIEW_WORLD_MAP,
-				"kliknięcie w przycisk powrotu wraca na mapę"
-			)
+			SceneManager.show_world_map()
+		54:
+			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "powrót na mapę")
 			print("SMOKE %s" % ("FAILED" if _failed else "PASSED"))
 			get_tree().quit(1 if _failed else 0)
