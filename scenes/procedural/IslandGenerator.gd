@@ -13,6 +13,8 @@ const CRATER_SCALE := 0.18
 const SLOT_RING := 0.45
 const SLOT_SIZE := 0.12
 const SLOT_HIT := 1.4
+## Promień trafienia w wyspę przy tapnięciu (tu i w WorldMap._on_tapped) - jedyne miejsce definicji.
+const TAP_RADIUS_FACTOR := 1.1
 const SHALLOW_COLOR := Color(0.55, 0.85, 0.95, 0.45)
 const EMPTY_SLOT_FILL := Color(0.5, 0.5, 0.5, 0.35)
 const EMPTY_SLOT_LINE := Color(0.6, 0.6, 0.6)
@@ -155,7 +157,7 @@ func slot_at(local_pos: Vector2) -> int:
 
 
 func contains(local_pos: Vector2) -> bool:
-	return local_pos.length() <= radius * 1.1
+	return local_pos.length() <= radius * TAP_RADIUS_FACTOR
 
 
 static func hexagon(r: float) -> PackedVector2Array:

@@ -137,7 +137,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 	if island == null:
 		return
 	var local := world_pos - WorldGrid.cell_to_world(cell)
-	if local.length() > island.radius * 1.1:
+	if local.length() > island.radius * IslandGenerator.TAP_RADIUS_FACTOR:
 		return
 	GameState.inspect(cell)
 	var s := GameState.settlement_at(cell)
