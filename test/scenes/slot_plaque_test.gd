@@ -36,3 +36,24 @@ func test_pressed_moves_children_down() -> void:
 	assert_float((p.get_node("Icon") as Control).position.y).is_equal(before + SlotPlaque.PRESS_TRAVEL)
 	p.pressed = false
 	assert_float((p.get_node("Icon") as Control).position.y).is_equal(before)
+
+
+func test_press_offset_is_shared_by_built_and_empty_slots() -> void:
+	var built := _plaque(Buildings.Type.TOWN_HALL, 1)
+	var empty := _plaque(Buildings.Type.BARRACKS, 0)
+	assert_that(built.press_offset()).is_equal(Vector2.ZERO)
+	assert_that(empty.press_offset()).is_equal(Vector2.ZERO)
+	built.pressed = true
+	empty.pressed = true
+	assert_that(built.press_offset()).is_equal(Vector2(0.0, SlotPlaque.PRESS_TRAVEL))
+	assert_that(empty.press_offset()).is_equal(Vector2(0.0, SlotPlaque.PRESS_TRAVEL))
+
+
+func test_empty_slot_children_follow_the_pressed_face() -> void:
+	# Pusty slot nie ma cienia, ale ikona i ramka muszą jechać razem - inaczej plus odkleja się od ramki.
+	var empty := _plaque(Buildings.Type.BARRACKS, 0)
+	var before: float = (empty.get_node("Icon") as Control).position.y
+	empty.pressed = true
+	assert_float((empty.get_node("Icon") as Control).position.y - before).is_equal(empty.press_offset().y)
+	empty.pressed = false
+	assert_float((empty.get_node("Icon") as Control).position.y).is_equal(before)

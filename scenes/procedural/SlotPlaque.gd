@@ -70,8 +70,14 @@ func setup(t: int, lvl: int) -> void:
 	queue_redraw()
 
 
+## Jedno źródło przesunięcia wciśnięcia: używają go i _draw(), i _place_children(),
+## więc twarz plakietki nigdy nie rozjedzie się z ikoną ani z odznaką.
+func press_offset() -> Vector2:
+	return Vector2(0.0, PRESS_TRAVEL) if pressed else Vector2.ZERO
+
+
 func _place_children() -> void:
-	var dy := PRESS_TRAVEL if pressed else 0.0
+	var dy := press_offset().y
 	if level > 0:
 		_icon.position = Vector2(-ICON_SIZE / 2.0, -HEIGHT / 2.0 + 22.0 + dy)
 		_label.position = Vector2(-_label.size.x / 2.0, HEIGHT / 2.0 - _label.size.y - 18.0 + dy)
@@ -89,11 +95,12 @@ func _draw() -> void:
 	if level > 0:
 		if not pressed:
 			_shadow.draw(get_canvas_item(), Rect2(rect.position + Vector2(0, SHADOW), rect.size))
-		_face.draw(get_canvas_item(), Rect2(rect.position + Vector2(0, PRESS_TRAVEL if pressed else 0.0), rect.size))
+		_face.draw(get_canvas_item(), Rect2(rect.position + press_offset(), rect.size))
 		return
-	draw_rect(rect, Color(MedievalTheme.PARCHMENT, EMPTY_ALPHA))
+	var empty_rect := Rect2(rect.position + press_offset(), rect.size)
+	draw_rect(empty_rect, Color(MedievalTheme.PARCHMENT, EMPTY_ALPHA))
 	var c := MedievalTheme.OAK_EDGE
-	draw_dashed_line(rect.position, Vector2(rect.end.x, rect.position.y), c, 3.0, DASH, true)
-	draw_dashed_line(Vector2(rect.end.x, rect.position.y), rect.end, c, 3.0, DASH, true)
-	draw_dashed_line(rect.end, Vector2(rect.position.x, rect.end.y), c, 3.0, DASH, true)
-	draw_dashed_line(Vector2(rect.position.x, rect.end.y), rect.position, c, 3.0, DASH, true)
+	draw_dashed_line(empty_rect.position, Vector2(empty_rect.end.x, empty_rect.position.y), c, 3.0, DASH, true)
+	draw_dashed_line(Vector2(empty_rect.end.x, empty_rect.position.y), empty_rect.end, c, 3.0, DASH, true)
+	draw_dashed_line(empty_rect.end, Vector2(empty_rect.position.x, empty_rect.end.y), c, 3.0, DASH, true)
+	draw_dashed_line(Vector2(empty_rect.position.x, empty_rect.end.y), empty_rect.position, c, 3.0, DASH, true)
