@@ -49,3 +49,12 @@ func test_unowned_island_with_deposit_lists_chips() -> void:
 func test_sea_is_rejected() -> void:
 	var s := _sheet()
 	await assert_error(func() -> void: s.open(SEA)).is_push_error("InspectSheet: %s nie jest wyspą" % SEA)
+
+
+func test_deposit_chip_uses_the_shared_builder() -> void:
+	var s := _sheet()
+	assert_bool(s.open(EMPTY_WITH_DEPOSIT)).is_true()
+	var chip: PanelContainer = s.deposit_row.get_child(0)
+	assert_str(String(chip.theme_type_variation)).is_equal("Chip")
+	assert_object(SheetStyle.chip_amount(chip)).is_not_null()
+	assert_str(SheetStyle.chip_amount(chip).text).is_not_empty()

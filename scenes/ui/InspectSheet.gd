@@ -5,9 +5,7 @@ extends PanelContainer
 
 signal close_requested
 
-const ICON := 40.0
-const CLOSE := 30.0
-const CHIP_ICON := 13.0
+const ICON := 40.0   # mniejsza niż w BuildingSheet: nagłówek arkusza wyspy jest niższy
 
 @onready var grabber: Panel = $SheetMargin/Body/Grabber
 @onready var biome_icon: Icon = $SheetMargin/Body/Header/HBox/BiomeIcon
@@ -25,7 +23,7 @@ func _ready() -> void:
 	SheetStyle.apply_common(self, grabber)
 	biome_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(ICON)
 	biome_icon.color = MedievalTheme.CREAM
-	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(CLOSE)
+	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SheetStyle.CLOSE)
 	Icon.into_button(close_button, &"close", MedievalTheme.CREAM, MedievalTheme.px(7))
 	subtitle.add_theme_color_override("font_color", MedievalTheme.INK_SOFT)
 	close_button.pressed.connect(func() -> void: close_requested.emit())
@@ -67,20 +65,8 @@ func open(coord: Vector2i) -> bool:
 
 
 func _chip(resource: String, amount: float) -> PanelContainer:
-	var chip := PanelContainer.new()
-	chip.theme_type_variation = &"Chip"
-	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var box := HBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon := Icon.new()
-	icon.kind = ResourceTypes.ICONS[resource]
-	icon.color = ResourceTypes.COLORS[resource]
-	icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(CHIP_ICON)
-	var label := Label.new()
-	label.theme_type_variation = &"Amount"
+	var chip := SheetStyle.resource_chip(resource)
+	var label := SheetStyle.chip_amount(chip)
 	label.add_theme_color_override("font_color", MedievalTheme.CREAM)
 	label.text = "%s %s" % [TimeUtil.format_thousands(amount), ResourceTypes.LABELS[resource].to_lower()]
-	box.add_child(icon)
-	box.add_child(label)
-	chip.add_child(box)
 	return chip

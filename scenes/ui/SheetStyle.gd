@@ -5,6 +5,8 @@ extends RefCounted
 
 const MARGIN := 14.0
 const GRABBER := Vector2(44.0, 4.0)
+const CLOSE := 30.0
+const CHIP_ICON := 13.0
 
 
 static func apply_common(sheet: PanelContainer, grabber: Panel) -> void:
@@ -14,3 +16,31 @@ static func apply_common(sheet: PanelContainer, grabber: Panel) -> void:
 	(margin.get_child(0) as Control).add_theme_constant_override("separation", MedievalTheme.px(11))
 	grabber.custom_minimum_size = Vector2(MedievalTheme.px(GRABBER.x), MedievalTheme.px(GRABBER.y))
 	grabber.add_theme_stylebox_override("panel", MedievalTheme.flat(MedievalTheme.OAK_EDGE, MedievalTheme.OAK_EDGE, 2, 0, 0, 0))
+
+
+## Chip zasobu: ikona w kolorze zasobu plus etykieta kwoty. Używają go arkusz budynku
+## (koszt ulepszenia) i arkusz oglądanej wyspy (zawartość znaleziska), więc konstrukcja
+## mieszka w jednym miejscu; wołający ustawia tekst i ewentualne nadpisania stylu.
+static func resource_chip(resource: String, icon_size: float = CHIP_ICON) -> PanelContainer:
+	var chip := PanelContainer.new()
+	chip.theme_type_variation = &"Chip"
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box := HBoxContainer.new()
+	box.name = "Box"
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := Icon.new()
+	icon.kind = ResourceTypes.ICONS[resource]
+	icon.color = ResourceTypes.COLORS[resource]
+	icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(icon_size)
+	var amount := Label.new()
+	amount.name = "Amount"
+	amount.theme_type_variation = &"Amount"
+	box.add_child(icon)
+	box.add_child(amount)
+	chip.add_child(box)
+	return chip
+
+
+## Etykieta kwoty w chipie zbudowanym przez resource_chip().
+static func chip_amount(chip: PanelContainer) -> Label:
+	return chip.get_node("Box/Amount") as Label

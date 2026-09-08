@@ -8,9 +8,7 @@ extends PanelContainer
 signal upgrade_requested(coord: Vector2i, building: int)
 signal close_requested
 
-const ICON := 46.0
-const CLOSE := 30.0
-const CHIP_ICON := 13.0
+const ICON := 46.0   # większa niż w InspectSheet: nagłówek arkusza budynku jest wyższy
 
 @onready var grabber: Panel = $SheetMargin/ModalBody/Grabber
 @onready var building_icon: Icon = $SheetMargin/ModalBody/Header/HBox/BuildingIcon
@@ -41,7 +39,7 @@ func _ready() -> void:
 	SheetStyle.apply_common(self, grabber)
 	building_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(ICON)
 	building_icon.color = MedievalTheme.CREAM
-	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(CLOSE)
+	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SheetStyle.CLOSE)
 	Icon.into_button(close_button, &"close", MedievalTheme.CREAM, MedievalTheme.px(7))
 	for b in [cancel_button, upgrade_button]:
 		b.custom_minimum_size.y = MedievalTheme.px(48)
@@ -55,26 +53,12 @@ func _ready() -> void:
 
 func _build_cost_chips() -> void:
 	for r in ResourceTypes.ALL:
-		var chip := PanelContainer.new()
+		var chip := SheetStyle.resource_chip(r)
 		chip.name = r.capitalize() + "Cost"
-		chip.theme_type_variation = &"Chip"
-		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var box := HBoxContainer.new()
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var icon := Icon.new()
-		icon.kind = ResourceTypes.ICONS[r]
-		icon.color = ResourceTypes.COLORS[r]
-		icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(CHIP_ICON)
-		var amount := Label.new()
-		amount.name = "Amount"
-		amount.theme_type_variation = &"Amount"
-		box.add_child(icon)
-		box.add_child(amount)
-		chip.add_child(box)
 		cost_grid.add_child(chip)
 		cost_chips[r] = chip
-		_cost_labels[r] = amount
+		_cost_labels[r] = SheetStyle.chip_amount(chip)
 
 
 ## Zwraca false (i push_error) dla budynku spoza slotów biomu osady.
