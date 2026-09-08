@@ -2,7 +2,7 @@
 class_name IslandGenerator
 extends Node2D
 
-## Rysuje wyspę z (seed_val, radius, biome) wyłącznie z Polygon2D / Line2D / Label.
+## Rysuje wyspę z (seed_val, radius, biome) z Polygon2D / Line2D, a sloty budynków jako SlotPlaque.
 ## W edytorze zmiana eksportu przebudowuje podgląd; w grze wołaj build() po ustawieniu pól.
 
 const POINTS := 48
@@ -11,13 +11,9 @@ const LAND_SCALE := 0.78
 const LAND_ROUGHNESS := 0.25
 const CRATER_SCALE := 0.18
 const SLOT_RING := 0.45
-const SLOT_SIZE := 0.12
-const SLOT_HIT := 1.4
 ## Promień trafienia w wyspę przy tapnięciu (tu i w WorldMap._on_tapped) - jedyne miejsce definicji.
 const TAP_RADIUS_FACTOR := 1.1
 const SHALLOW_COLOR := Color(0.55, 0.85, 0.95, 0.45)
-const EMPTY_SLOT_FILL := Color(0.5, 0.5, 0.5, 0.35)
-const EMPTY_SLOT_LINE := Color(0.6, 0.6, 0.6)
 
 @export var seed_val: int = 1:
 	set(v):
@@ -59,11 +55,15 @@ func _editor_rebuild() -> void:
 		build()
 
 
-func build() -> void:
+func clear() -> void:
 	for c in get_children():
 		remove_child(c)
 		c.free()
 	_slot_positions.clear()
+
+
+func build() -> void:
+	clear()
 	_coast = CoastlineGenerator.generate(seed_val, radius, POINTS)
 	var colors := Biome.colors(biome)
 	_add_polygon("Shallow", CoastlineGenerator.scaled(_coast, SHALLOW_SCALE), SHALLOW_COLOR)
@@ -124,36 +124,30 @@ func _build_slots() -> void:
 
 func _add_slot(t: Buildings.Type, pos: Vector2) -> void:
 	var lvl := settlement.level(t) if settlement != null else 0
-	var size := radius * SLOT_SIZE
-	var node := Node2D.new()
-	node.name = "Slot_" + Buildings.key(t)
-	node.position = pos
-	var hex := Polygon2D.new()
-	hex.polygon = hexagon(size)
-	hex.color = Biome.colors(biome)["land"].darkened(0.35) if lvl > 0 else EMPTY_SLOT_FILL
-	node.add_child(hex)
-	var outline := Line2D.new()
-	outline.points = hexagon(size)
-	outline.closed = true
-	outline.width = 2.0
-	outline.default_color = Color.WHITE if lvl > 0 else EMPTY_SLOT_LINE
-	node.add_child(outline)
-	var label := Label.new()
-	label.text = "%s\n%d" % [Buildings.label(t), lvl] if lvl > 0 else Buildings.label(t)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.size = Vector2(160, 48)
-	label.position = Vector2(-80, size + 4)
-	label.add_theme_font_size_override("font_size", 16)
-	node.add_child(label)
-	add_child(node)
+	var plaque := SlotPlaque.new()
+	plaque.name = "Slot_" + Buildings.key(t)
+	plaque.position = pos
+	plaque.setup(t, lvl)
+	add_child(plaque)
 
 
-## Typ budynku pod pozycją lokalną albo -1.
+## Typ budynku pod pozycją lokalną (prostokąt plakietki) albo -1.
 func slot_at(local_pos: Vector2) -> int:
 	for t in _slot_positions:
-		if local_pos.distance_to(_slot_positions[t]) <= radius * SLOT_SIZE * SLOT_HIT:
+		var plaque := _plaque(t)
+		if plaque != null and plaque.contains(local_pos - _slot_positions[t]):
 			return t
 	return -1
+
+
+func set_pressed(t: int, pressed: bool) -> void:
+	var plaque := _plaque(t)
+	if plaque != null:
+		plaque.pressed = pressed
+
+
+func _plaque(t: int) -> SlotPlaque:
+	return get_node_or_null("Slot_" + Buildings.key(t)) as SlotPlaque
 
 
 ## Czy punkt lokalny (środek = środek wyspy) mieści się w promieniu trafienia przy tapnięciu.
@@ -161,10 +155,3 @@ func slot_at(local_pos: Vector2) -> int:
 ## (np. z WorldMap._on_tapped dla wysp w chunkach, które mogą być aktualnie niezaładowane).
 static func contains(local_pos: Vector2, island_radius: float) -> bool:
 	return local_pos.length() <= island_radius * TAP_RADIUS_FACTOR
-
-
-static func hexagon(r: float) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for i in 6:
-		out.append(Vector2.from_angle(float(i) / 6.0 * TAU) * r)
-	return out
