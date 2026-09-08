@@ -6,15 +6,16 @@ const ELLIPSE_MIN := 0.8
 const ELLIPSE_MAX := 1.2
 
 
-## Deterministyczna liczba w [0, 1) z liczby całkowitej.
-static func hash01(seed_val: int) -> float:
+## Miesza surowy seed (jeszcze niehashowany) i rzutuje na [0, 1). Prywatne dla tego pliku;
+## to NIE jest `WorldGrid.hash01`, który zamienia na [0, 1) liczbę już wcześniej zhashowaną.
+static func _mix_seed01(seed_val: int) -> float:
 	var h: int = (seed_val ^ (seed_val >> 16)) * 0x45d9f3b
 	h = (h ^ (h >> 16)) & 0x7fffffff
 	return float(h % 10007) / 10007.0
 
 
 static func ellipse_factor(seed_val: int) -> float:
-	return ELLIPSE_MIN + (ELLIPSE_MAX - ELLIPSE_MIN) * hash01(seed_val)
+	return ELLIPSE_MIN + (ELLIPSE_MAX - ELLIPSE_MIN) * _mix_seed01(seed_val)
 
 
 ## Zamknięty kontur wyspy: punkty na okręgu o promieniu zaburzonym szumem.
