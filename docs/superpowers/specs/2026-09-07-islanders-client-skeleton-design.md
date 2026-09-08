@@ -38,13 +38,14 @@ res://
 ├── addons/gdUnit4/
 ├── scenes/
 │   ├── autoload/
-│   │   ├── ApiClient.gd           # fasada danych, Timer resync 60 s, server_time_offset
+│   │   ├── ApiClient.gd           # fasada danych, Timer resync 60 s
 │   │   ├── SceneManager.gd        # przełączanie widoków w Main.tscn, sygnał view_changed
 │   │   └── GameState.gd           # store: world, settlements, fleets, active/inspected
 │   ├── views/
 │   │   ├── Main.tscn              # root: ViewContainer + HUD
 │   │   ├── WorldMap.tscn / .gd
 │   │   ├── MapCamera.gd
+│   │   ├── Water.gd               # Node2D, _draw() siatki wody widocznego obszaru
 │   │   └── IslandDetail.tscn / .gd
 │   ├── procedural/
 │   │   ├── IslandGenerator.gd     # Node2D @tool, rysuje wyspę i sloty
@@ -56,15 +57,15 @@ res://
 │   ├── core/                      # czysta logika, zero Node, w pełni testowana
 │   │   ├── Coord.gd               # Vector2i helpers, klucz "x:y"
 │   │   ├── Biome.gd               # enum, kolory, zasoby biomu, sloty wydobywcze
-│   │   ├── Resources.gd           # enum zasobów, nazwy, kolory chipów
+│   │   ├── ResourceTypes.gd       # enum zasobów, nazwy, kolory chipów
 │   │   ├── Buildings.gd           # enum budynków, sloty wspólne
 │   │   ├── Island.gd              # geografia: coord, seed, biome, radius, deposit
 │   │   ├── Settlement.gd          # stan: owner, name, resources, buildings, population, capacity
 │   │   ├── Fleet.gd               # from, to, mission, ships, cargo, departAt, arriveAt
-│   │   ├── World.gd               # id, seed, size, wind, status
+│   │   ├── GameWorld.gd           # id, seed, size, wind, status
 │   │   ├── WorldGrid.gd           # deterministyczny placement wysp w chunkach
 │   │   ├── CoastlineGenerator.gd  # sam kontur PackedVector2Array
-│   │   ├── Navigation.gd          # travel_time(from, to, speed, wind)
+│   │   ├── SeaNavigation.gd       # travel_time(from, to, speed, wind)
 │   │   └── TimeUtil.gd            # parse ISO8601, now(), format_amount
 │   └── api/
 │       ├── ApiProvider.gd         # klasa bazowa
@@ -78,6 +79,10 @@ res://
     ├── core/
     └── api/
 ```
+
+`Resources.gd`, `World.gd` i `Navigation.gd` z pierwotnego planu nazywają się w kodzie
+`ResourceTypes.gd`, `GameWorld.gd` i `SeaNavigation.gd` — te trzy nazwy kolidowałyby
+z wbudowanymi klasami silnika Godota, więc zostały przemianowane.
 
 Autoloady w kolejności: `GameState`, `ApiClient`, `SceneManager`.
 
@@ -184,7 +189,9 @@ Pomocnicze: `settlement_at(coord) -> Settlement` (albo `null`), `own_settlements
 ### 4.7 Sygnały między warstwami
 
 - HUD słucha `active_settlement_changed`, `settlement_updated`.
-- WorldMap słucha `state_loaded`, `fleets_updated`, `settlement_updated`.
+- WorldMap nie słucha `state_loaded` — `SceneManager` tworzy jej scenę dopiero po
+  zakończeniu ładowania, więc `_ready()` czyta stan od razu z `GameState` bezpośrednio;
+  później słucha `fleets_updated`, `settlement_updated`.
 - IslandDetail słucha `inspected_island_changed`.
 - Widoki nie wołają siebie nawzajem; nawigacja wyłącznie przez `SceneManager`.
 
@@ -225,8 +232,7 @@ poziomy slotów. `build()` czyści dzieci i rysuje warstwy od spodu:
    kolorem biomu + poziom w labelu. Sygnał `slot_tapped(building: Buildings.Type)`.
 
 `Biome.gd`: `enum Type`, tabela `{ land, sand, coast, crater }: Color`,
-`resources(biome) -> Array`, `extraction_buildings(biome) -> Array`,
-`mock_production(biome) -> Dictionary` (tylko dla `MockProvider`).
+`resources(biome) -> Array`, `extraction_buildings(biome) -> Array`.
 
 ## 6. Mapa świata i kamera
 
@@ -307,12 +313,15 @@ HUD (CanvasLayer, layer 10)
 - `ApiClient` ma `Timer` 60 s wołający providera ponownie; `apply_settlements` nadpisuje
   `resources` i `lastSyncAt`. `MockProvider` przy odświeżeniu przelicza zasoby na „teraz”
   i ustawia `lastSyncAt = now`, tak jak zrobi prawdziwy backend.
-- `TimeUtil.now()` = `Time.get_unix_time_from_system() + ApiClient.server_time_offset`.
-  Offset liczony z `serverTime` w odpowiedzi `world`. Nic poza `TimeUtil` nie woła `Time` bezpośrednio.
+- `TimeUtil.now()` = `Time.get_unix_time_from_system() + TimeUtil.server_time_offset`. Offset,
+  ustawiany przez `TimeUtil.set_server_time()`, liczony jest z `serverTime` w odpowiedzi `world`.
+  Offset mieszka w `TimeUtil`, nie w `ApiClient` — dzięki temu `scripts/core/` (gdzie żyje
+  `TimeUtil`) nie zależy od żadnego autoloadu, co jest tą samą warstwową zasadą, której ten
+  spec wymaga od reszty `scripts/core/`. Nic poza `TimeUtil` nie woła `Time` bezpośrednio.
 
 ## 8. Floty i nawigacja
 
-### 8.1 `Navigation.gd` (statyczna, testowana)
+### 8.1 `SeaNavigation.gd` (statyczna, testowana)
 
 - `distance(from: Vector2i, to: Vector2i) -> float`: euklidesowa w komórkach.
 - `travel_time(from, to, speed_cells_per_hour: float, wind: Vector2 = Vector2.ZERO) -> float`
@@ -349,7 +358,8 @@ własna `RETURN`, nadchodząca cudza `ATTACK` na osadę domową (arrive = now + 
   Fixtures leżą w komórkach uznanych przez `WorldGrid` za ląd, a budynki wydobywcze
   w fixtures pasują do biomu wyspy (oba sprawdzane testem).
 - `HttpProvider`: `HTTPRequest`, `base_url` z ustawienia projektu, parsowanie JSON,
-  `serverTime` do `server_time_offset`. Bez działających endpointów.
+  `serverTime` do `TimeUtil.server_time_offset` (przez `TimeUtil.set_server_time()`).
+  Bez działających endpointów.
 - `ApiClient`: wybiera providera przez `ProjectSettings` `islanders/api/use_mock` (domyślnie true).
 
 ## 10. Obsługa błędów
