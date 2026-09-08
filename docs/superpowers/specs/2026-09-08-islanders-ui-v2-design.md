@@ -33,8 +33,9 @@ licznik rolujący zasobów, akcje na wyspie (wyprawa, kolonizacja, atak), emoji.
 | Widoki | Dwa: `IslandDetail` (osada aktywna) i `WorldMap`, podmieniane przez `SceneManager` | Jedna aktywna `Camera2D`, istniejący wzorzec, małe sceny |
 | Chrome | Trwałe warstwy w `Main`: HUD, Dock, Sheets | Przeżywają podmianę widoku, jeden backdrop |
 | Arkusze | Zawsze od dołu (`Bottom Wide`), co najwyżej jeden otwarty | Jedna ścieżka animacji |
-| Motyw | `MedievalTheme.build()` w `Main._ready()`, bez pliku `.theme` | Brak binariów w repo, testowalne headless |
-| Fonty | Cinzel Bold, Spectral Regular i SemiBold (OFL) w `res://ui/fonts/` | Wierność projektowi; licencja pozwala na dystrybucję |
+| Motyw | `MedievalTheme.install()` w `Main._ready()`: `build()` scalany z domyślnym motywem `ThemeDB`, bez pliku `.theme` | Brak binariów w repo, testowalne headless; `CanvasLayer` i `Node2D` przerywają dziedziczenie motywu, więc przypięcie do korzenia by nie działało |
+| Fonty | Cinzel (font zmienny, waga 700 przez `FontVariation`), Spectral Regular i SemiBold (OFL) w `res://ui/fonts/` | Wierność projektowi; licencja pozwala na dystrybucję; Google Fonts nie publikuje statycznego Cinzel Bold |
+| Dotyk | `emulate_mouse_from_touch = true` | Wbudowany `Button` reaguje tylko na zdarzenia myszy; bez emulacji przyciski nie działają na telefonie |
 | Ikony | Klasa `Icon` z `_draw()`, płaskie glify z palety | Domyślny font Godota nie renderuje emoji; zero zewnętrznych grafik |
 | Zasoby w HUD | Pięć kart `ResCard` plus placeholder złota | Domena ma pięć zasobów bez złota; miejsce na przyszłą walutę |
 | Profil w HUD | Nazwa osady aktywnej, odznaka biomu, podpis ze światem i współrzędnymi | Gracz nie ma poziomu ani nazwy w domenie |
@@ -60,7 +61,7 @@ Main (Control, Full Rect, mouse_filter = PASS, theme = MedievalTheme.build())   
 Tło morza przenosi się z `WorldMap.tscn` i `IslandDetail.tscn` do `Main`. Oba widoki tracą
 własne `Background`.
 
-`Main._ready()`: buduje motyw, rejestruje kontener, po `state_loaded` woła
+`Main._ready()`: wgrywa motyw (`MedievalTheme.install()`), rejestruje kontener, po `state_loaded` woła
 `SceneManager.show_island_detail()` (start w osadzie, nie na mapie), łączy
 `Sheets.upgrade_requested` z `print`, jak dziś `IslandDetail`.
 
@@ -206,7 +207,7 @@ Pliki `.import` i `.uid` śledzone w git.
 - `const SCALE := 2.77`. `flat()` i `plaque()` mnożą promień, szerokość obramowania,
   marginesy i cień przez `SCALE`. Rozmiary fontów w `build()` = wartość z projektu × `SCALE`,
   zaokrąglone do całości.
-- Fonty przez `preload`. `build_and_save()` nie wchodzi.
+- Fonty przez `preload`. `build_and_save()` nie wchodzi. `install()` scala `build()` z `ThemeDB.get_default_theme()` i ustawia `ThemeDB.fallback_font`.
 - Wariacje, które wchodzą: `Label`: `Title`, `Caption`, `SectionHeader`, `Amount`, `Rate`,
   `Badge`. `PanelContainer`: `BarPanel`, `ResCard`, `Chip`, `Plaque`, `Sheet`, `ModalHeader`,
   `FleetCard`. `Button`: `Primary`, `Danger`, `ToolButton`. `ProgressBar`: `RaidBar`,
@@ -402,7 +403,7 @@ VBoxContainer
 └── Composition (Label, Caption, INK_SOFT)
 ```
 
-- `refresh(fleet: Fleet, now: float)`:
+- `refresh(fleet: Fleet, now: float, player_id: int)` (id gracza jawnie, żeby karta była testowalna bez `GameState`):
   - `Title`: `"%s → (%d, %d)"` z `Fleet.MISSION_LABELS[mission]` i `fleet.to`.
   - `EtaLabel`: `mm:ss` z `remaining_seconds(now)`; powyżej godziny `h:mm:ss`.
   - `EtaBar.value = progress(now)` (`max_value = 1`).
