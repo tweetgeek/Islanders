@@ -29,8 +29,7 @@ func refresh(f: Fleet, now: float, player_id: int) -> void:
 	fleet = f
 	var label: String = Fleet.MISSION_LABELS.get(f.mission, f.mission)
 	title.text = "%s → (%d, %d)" % [label, f.to.x, f.to.y]
-	eta_label.text = TimeUtil.format_eta(f.remaining_seconds(now))
-	eta_bar.value = f.progress(now)
+	refresh_countdown(now)
 	composition.text = _composition(f) if f.is_own(player_id) else "gracz %d · szczegóły niewidoczne" % f.owner_id
 	mission_icon.kind = Fleet.MISSION_ICONS.get(f.mission, &"fleet")
 	var accent := MedievalTheme.BRASS
@@ -49,6 +48,13 @@ func refresh(f: Fleet, now: float, player_id: int) -> void:
 		var sb: StyleBoxFlat = base.duplicate()
 		sb.border_color = accent
 		add_theme_stylebox_override("panel", sb)
+
+
+## Jedyne, co zmienia się z upływem czasu. Reszta karty (misja, kolor akcentu, skład) jest
+## stała, więc tik co sekundę nie musi duplikować styleboxa ani przestawiać wariacji paska.
+func refresh_countdown(now: float) -> void:
+	eta_label.text = TimeUtil.format_eta(fleet.remaining_seconds(now))
+	eta_bar.value = fleet.progress(now)
 
 
 func _composition(f: Fleet) -> String:

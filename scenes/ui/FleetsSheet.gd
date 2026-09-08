@@ -9,7 +9,6 @@ signal close_requested
 
 const FLEET_CARD := preload("res://scenes/ui/FleetCard.tscn")
 const TICK := 1.0
-const ICON := 40.0
 
 @onready var grabber: Panel = $SheetMargin/Body/Grabber
 @onready var fleet_icon: Icon = $SheetMargin/Body/Header/HBox/FleetIcon
@@ -24,13 +23,8 @@ var _accum := 0.0
 
 
 func _ready() -> void:
-	SheetStyle.apply_common(self, grabber)
-	fleet_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(ICON)
-	fleet_icon.color = MedievalTheme.CREAM
-	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SheetStyle.CLOSE)
-	Icon.into_button(close_button, &"close", MedievalTheme.CREAM, MedievalTheme.px(7))
+	SheetStyle.apply_common(self, grabber, fleet_icon, close_button, close_requested, 40.0)
 	list.add_theme_constant_override("separation", MedievalTheme.px(10))
-	close_button.pressed.connect(func() -> void: close_requested.emit())
 	GameState.fleets_updated.connect(_on_fleets_updated)
 
 
@@ -87,9 +81,13 @@ func _process(delta: float) -> void:
 		return
 	_accum = 0.0
 	var now := TimeUtil.now()
-	var pid := GameState.player_id
 	for c: FleetCard in _cards:
-		c.refresh(c.fleet, now, pid)
+		# Podziału na sekcje i liczb w nagłówkach tik sam nie poprawi - to robi refresh().
+		if c.fleet.is_arrived(now):
+			refresh()
+			return
+	for c: FleetCard in _cards:
+		c.refresh_countdown(now)
 
 
 func _on_fleets_updated() -> void:

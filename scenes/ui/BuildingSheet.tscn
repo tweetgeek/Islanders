@@ -19,108 +19,108 @@ script = ExtResource("1")
 layout_mode = 2
 mouse_filter = 2
 
-[node name="ModalBody" type="VBoxContainer" parent="SheetMargin"]
+[node name="Body" type="VBoxContainer" parent="SheetMargin"]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Grabber" type="Panel" parent="SheetMargin/ModalBody"]
+[node name="Grabber" type="Panel" parent="SheetMargin/Body"]
 layout_mode = 2
 size_flags_horizontal = 4
 mouse_filter = 2
 
-[node name="Header" type="PanelContainer" parent="SheetMargin/ModalBody"]
+[node name="Header" type="PanelContainer" parent="SheetMargin/Body"]
 layout_mode = 2
 mouse_filter = 2
 theme_type_variation = &"ModalHeader"
 
-[node name="HBox" type="HBoxContainer" parent="SheetMargin/ModalBody/Header"]
+[node name="HBox" type="HBoxContainer" parent="SheetMargin/Body/Header"]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="BuildingIcon" type="Control" parent="SheetMargin/ModalBody/Header/HBox"]
+[node name="BuildingIcon" type="Control" parent="SheetMargin/Body/Header/HBox"]
 layout_mode = 2
 script = ExtResource("2")
 
-[node name="TitleBox" type="VBoxContainer" parent="SheetMargin/ModalBody/Header/HBox"]
+[node name="TitleBox" type="VBoxContainer" parent="SheetMargin/Body/Header/HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="NameRow" type="HBoxContainer" parent="SheetMargin/ModalBody/Header/HBox/TitleBox"]
+[node name="NameRow" type="HBoxContainer" parent="SheetMargin/Body/Header/HBox/TitleBox"]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Name" type="Label" parent="SheetMargin/ModalBody/Header/HBox/TitleBox/NameRow"]
+[node name="Name" type="Label" parent="SheetMargin/Body/Header/HBox/TitleBox/NameRow"]
 layout_mode = 2
 theme_type_variation = &"Title"
 
-[node name="LevelBadge" type="Label" parent="SheetMargin/ModalBody/Header/HBox/TitleBox/NameRow"]
+[node name="LevelBadge" type="Label" parent="SheetMargin/Body/Header/HBox/TitleBox/NameRow"]
 layout_mode = 2
 theme_type_variation = &"Badge"
 
-[node name="Subtitle" type="Label" parent="SheetMargin/ModalBody/Header/HBox/TitleBox"]
+[node name="Subtitle" type="Label" parent="SheetMargin/Body/Header/HBox/TitleBox"]
 layout_mode = 2
 theme_type_variation = &"Caption"
 
-[node name="CloseButton" type="Button" parent="SheetMargin/ModalBody/Header/HBox"]
+[node name="CloseButton" type="Button" parent="SheetMargin/Body/Header/HBox"]
 layout_mode = 2
 size_flags_vertical = 4
 theme_type_variation = &"ToolButton"
 
-[node name="Description" type="Label" parent="SheetMargin/ModalBody"]
+[node name="Description" type="Label" parent="SheetMargin/Body"]
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="CostSection" type="VBoxContainer" parent="SheetMargin/ModalBody"]
+[node name="CostSection" type="VBoxContainer" parent="SheetMargin/Body"]
 visible = false
 layout_mode = 2
 mouse_filter = 2
 
-[node name="CostHeader" type="Label" parent="SheetMargin/ModalBody/CostSection"]
+[node name="CostHeader" type="Label" parent="SheetMargin/Body/CostSection"]
 layout_mode = 2
 theme_type_variation = &"SectionHeader"
 
-[node name="CostGrid" type="GridContainer" parent="SheetMargin/ModalBody/CostSection"]
+[node name="CostGrid" type="GridContainer" parent="SheetMargin/Body/CostSection"]
 layout_mode = 2
 columns = 5
 mouse_filter = 2
 
-[node name="TimerSection" type="VBoxContainer" parent="SheetMargin/ModalBody"]
+[node name="TimerSection" type="VBoxContainer" parent="SheetMargin/Body"]
 visible = false
 layout_mode = 2
 mouse_filter = 2
 
-[node name="TimerRow" type="HBoxContainer" parent="SheetMargin/ModalBody/TimerSection"]
+[node name="TimerRow" type="HBoxContainer" parent="SheetMargin/Body/TimerSection"]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="TimerHeader" type="Label" parent="SheetMargin/ModalBody/TimerSection/TimerRow"]
+[node name="TimerHeader" type="Label" parent="SheetMargin/Body/TimerSection/TimerRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "BUDOWA"
 theme_type_variation = &"SectionHeader"
 
-[node name="TimerLabel" type="Label" parent="SheetMargin/ModalBody/TimerSection/TimerRow"]
+[node name="TimerLabel" type="Label" parent="SheetMargin/Body/TimerSection/TimerRow"]
 layout_mode = 2
 theme_type_variation = &"Amount"
 
-[node name="ConstructionBar" type="ProgressBar" parent="SheetMargin/ModalBody/TimerSection"]
+[node name="ConstructionBar" type="ProgressBar" parent="SheetMargin/Body/TimerSection"]
 layout_mode = 2
 mouse_filter = 2
 max_value = 1.0
 show_percentage = false
 
-[node name="ActionRow" type="HBoxContainer" parent="SheetMargin/ModalBody"]
+[node name="ActionRow" type="HBoxContainer" parent="SheetMargin/Body"]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="CancelButton" type="Button" parent="SheetMargin/ModalBody/ActionRow"]
+[node name="CancelButton" type="Button" parent="SheetMargin/Body/ActionRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "ZAMKNIJ"
 theme_type_variation = &"Danger"
 
-[node name="UpgradeButton" type="Button" parent="SheetMargin/ModalBody/ActionRow"]
+[node name="UpgradeButton" type="Button" parent="SheetMargin/Body/ActionRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 2.0

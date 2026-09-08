@@ -48,6 +48,9 @@ func _ready() -> void:
 	zoom_out.pressed.connect(camera.zoom_by.bind(0.8))
 	_style_ui()
 	get_viewport().size_changed.connect(_layout_ui)
+	var hud := _hud()
+	if hud != null:
+		hud.bar_height_changed.connect(_layout_ui)
 	_layout_ui()
 
 
@@ -56,11 +59,9 @@ func _exit_tree() -> void:
 	SceneManager.map_camera_state["zoom"] = camera.zoom
 
 
-## Natychmiastowy skok kamery (arkusz flot). Zeruje inercję, żeby kamera nie odjechała.
+## Natychmiastowy skok kamery (arkusz flot).
 func focus(world_pos: Vector2) -> void:
-	camera.position = world_pos
-	camera._velocity = Vector2.ZERO
-	camera._clamp_position()
+	camera.jump_to(world_pos)
 
 
 func _process(delta: float) -> void:
@@ -159,11 +160,19 @@ func _style_ui() -> void:
 	Icon.into_button(zoom_out, &"minus", MedievalTheme.CREAM, MedievalTheme.px(13))
 
 
+func _hud() -> Node:
+	return get_tree().get_first_node_in_group("hud")
+
+
+func _hud_bar_height() -> float:
+	var hud := _hud()
+	return hud.bar_height() if hud != null else 0.0
+
+
 ## Plakietka powrotu i panel współrzędnych pod paskiem HUD, zoom nad safe area.
 func _layout_ui() -> void:
 	var m := MedievalTheme.px(UI_MARGIN)
-	var hud := get_tree().get_first_node_in_group("hud")
-	var top: float = (hud.bar_height() if hud != null else 0.0) + m
+	var top := _hud_bar_height() + m
 	back_plaque.position = Vector2(m, top)
 	coord_panel.offset_top = top
 	coord_panel.offset_right = -m
@@ -197,7 +206,12 @@ func _on_settlement_updated(coord: Vector2i) -> void:
 	_rebuild_labels()
 
 
-func _on_tapped(world_pos: Vector2) -> void:
+## Pasek HUD jest przezroczysty dla inputu (żeby dało się z niego przeciągać mapę), więc
+## martwa strefa na tapnięcia musi być tutaj: inaczej stacjonarny tap w kartę zasobu wybierałby
+## wyspę leżącą pod paskiem. Przeciąganie idzie inną drogą i pozostaje nietknięte.
+func _on_tapped(world_pos: Vector2, screen_pos: Vector2) -> void:
+	if screen_pos.y < _hud_bar_height():
+		return
 	var cell := WorldGrid.world_to_cell(world_pos)
 	var island := GameState.island_at(cell)
 	if island == null:

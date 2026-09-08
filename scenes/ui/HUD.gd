@@ -3,7 +3,11 @@ extends CanvasLayer
 ## Górny pasek osady aktywnej. Nie liczy nic sam: woła Settlement.current_resources(TimeUtil.now()).
 ## Pokazuje wyłącznie osadę aktywną; oglądana wyspa to zadanie InspectSheet.
 
-const NARROW_WIDTH := 700.0
+## Emitowany, gdy wysokość paska naprawdę się zmieniła - po ustaleniu layoutu, nie w trakcie.
+## Widoki podpięte do samego size_changed czytają bar_height() jeszcze sprzed przepięcia
+## ResourceGrid (przesortowanie kontenera jest odroczone), więc potrzebują tego sygnału.
+signal bar_height_changed
+
 ## Przyciemnienie karty zasobu, którego osada nie produkuje (45% krycia).
 const DIMMED := 0.45
 const PAD := 12.0
@@ -33,6 +37,7 @@ var cards: Dictionary = {}
 var _icons: Dictionary = {}
 var _amounts: Dictionary = {}
 var _rates: Dictionary = {}
+var _last_bar_height := -1.0
 
 
 func _ready() -> void:
@@ -41,6 +46,7 @@ func _ready() -> void:
 	GameState.active_settlement_changed.connect(_on_active_changed)
 	GameState.settlement_updated.connect(_on_settlement_updated)
 	get_viewport().size_changed.connect(_on_size_changed)
+	top_bar.resized.connect(_notify_bar_height)
 	_on_size_changed()
 	_on_active_changed()
 
@@ -117,6 +123,16 @@ func bar_height() -> float:
 	return top_bar.offset_top + top_bar.size.y
 
 
+## Sygnał leci tylko przy realnej zmianie, więc wolno wołać to i z resized, i z size_changed:
+## ta pierwsza wartość bywa jeszcze sprzed przesortowania, druga zawsze ją domyka.
+func _notify_bar_height() -> void:
+	var h := bar_height()
+	if is_equal_approx(h, _last_bar_height):
+		return
+	_last_bar_height = h
+	bar_height_changed.emit()
+
+
 func _on_active_changed() -> void:
 	_settlement = GameState.active_settlement
 	if _settlement == null:
@@ -124,7 +140,9 @@ func _on_active_changed() -> void:
 		biome_badge.text = ""
 		subtitle.text = ""
 		pop_label.text = "0 / 0"
+		pop_bar.max_value = 1.0
 		pop_bar.value = 0.0
+		pop_label.add_theme_color_override("font_color", MedievalTheme.CREAM)
 		for r in ResourceTypes.ALL:
 			_amounts[r].text = "0"
 			_rates[r].text = ""
@@ -154,14 +172,14 @@ func _process(_delta: float) -> void:
 	if _settlement == null:
 		return
 	var current := _settlement.current_resources(TimeUtil.now())
-	var narrow := get_viewport().get_visible_rect().size.x < NARROW_WIDTH
 	for r in ResourceTypes.ALL:
-		_amounts[r].text = TimeUtil.format_amount(current[r]) if narrow else TimeUtil.format_thousands(current[r])
+		_amounts[r].text = TimeUtil.format_thousands(current[r])
 
 
 func _on_size_changed() -> void:
 	top_bar.offset_top = SafeArea.top_inset(get_viewport())
 	_apply_orientation()
+	_notify_bar_height()
 
 
 ## Portret: karty zasobów pod wierszem profilu. Landscape: karty w tym samym wierszu po prawej,

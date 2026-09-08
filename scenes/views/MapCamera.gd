@@ -3,7 +3,9 @@ extends Camera2D
 
 ## Pan jednym palcem (lub LPM przez emulację), pinch dwoma, scroll myszy, tap z progiem czasu i dystansu.
 
-signal tapped(world_pos: Vector2)
+## screen_pos jedzie obok world_pos, żeby odbiorca mógł odrzucić tapnięcia w chrome
+## (np. w pasek HUD) - kamera sama nic o UI ani o wyspach nie wie.
+signal tapped(world_pos: Vector2, screen_pos: Vector2)
 
 const ZOOM_MIN := 0.25
 const ZOOM_MAX := 2.0
@@ -67,7 +69,7 @@ func _on_touch(e: InputEventScreenTouch) -> void:
 		if was_single:
 			var elapsed := Time.get_ticks_msec() / 1000.0 - _press_time
 			if elapsed < TAP_MAX_TIME and _drag_dist < TAP_MAX_DIST:
-				tapped.emit(screen_to_world(e.position))
+				tapped.emit(screen_to_world(e.position), e.position)
 
 
 func _on_drag(e: InputEventScreenDrag) -> void:
@@ -91,6 +93,13 @@ func _process(delta: float) -> void:
 		position += _velocity * delta
 		_velocity = _velocity.lerp(Vector2.ZERO, clampf(INERTIA_DAMP * delta, 0.0, 1.0))
 		_clamp_position()
+
+
+## Natychmiastowy skok na punkt świata: zeruje inercję, żeby kamera nie odjechała dalej.
+func jump_to(world_pos: Vector2) -> void:
+	position = world_pos
+	_velocity = Vector2.ZERO
+	_clamp_position()
 
 
 ## Zoom wokół środka ekranu (przyciski + / − na mapie).

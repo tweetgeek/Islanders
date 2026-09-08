@@ -58,3 +58,14 @@ func test_deposit_chip_uses_the_shared_builder() -> void:
 	assert_str(String(chip.theme_type_variation)).is_equal("Chip")
 	assert_object(SheetStyle.chip_amount(chip)).is_not_null()
 	assert_str(SheetStyle.chip_amount(chip).text).is_not_empty()
+
+
+## Regresja: chipy znaleziska były zwalniane samym queue_free(), więc dwa open() w jednej
+## klatce zostawiały poprzedni komplet wciąż podpięty pod DepositRow.
+func test_two_opens_in_one_frame_do_not_leave_stale_chips() -> void:
+	var island := GameState.island_at(EMPTY_WITH_DEPOSIT)
+	var s := _sheet()
+	assert_bool(s.open(EMPTY_WITH_DEPOSIT)).is_true()
+	assert_bool(s.open(EMPTY_WITH_DEPOSIT)).is_true()
+	assert_int(s.deposit_row.get_child_count()).is_equal(island.deposit.size())
+	await await_idle_frame()

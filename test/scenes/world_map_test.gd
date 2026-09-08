@@ -2,27 +2,37 @@ extends GdUnitTestSuite
 
 ## Testy WorldMap.gd: synchronizacja słownika załadowanych chunków, kolejki oczekujących
 ## i drzewa sceny podczas przesuwania kamery, w tym ewikcja, brak duplikatów, budżet
-## spawnu na klatkę i przebudowa chunka po aktualizacji osady.
+## spawnu na klatkę i przebudowa chunka po aktualizacji osady. Dalej chrome mapy: układ
+## pod paskiem HUD po obrocie ekranu i martwa strefa tapnięć w obrębie paska.
 
 const WORLD_MAP_SCENE := preload("res://scenes/views/WorldMap.tscn")
 const WORLD_MAP_SCRIPT := preload("res://scenes/views/WorldMap.gd")
+const HUD_SCENE := preload("res://scenes/ui/HUD.tscn")
+const SHEETS_SCENE := preload("res://scenes/ui/Sheets.tscn")
 
-const WORLD_SEED := 1337
+const WORLD_SEED := FixtureCells.WORLD_SEED
 const WORLD_SIZE := 4000
-## (103, 100) to znany ląd (TROPICAL) dla ziarna 1337 - używany też w test/state/game_state_test.gd.
-const HOME_CELL := Vector2i(103, 100)
+const HOME_CELL := FixtureCells.HOME
+const FOREIGN_CELL := FixtureCells.FOREIGN
 ## Daleko od krawędzi świata (0..1_024_000), żeby kamera nigdy nie była przycinana przez bounds.
 const START_POS := Vector2(200000.0, 200000.0)
+## Portret projektu; testy obracające ekran wracają do niego, żeby nie zmieniać stanu innym testom.
+const PORTRAIT_WINDOW := Vector2i(1080, 1920)
+const LANDSCAPE_WINDOW := Vector2i(1920, 1080)
+
+var _window_size := Vector2i.ZERO
 
 
 func before_test() -> void:
 	GameState.reset()
 	SceneManager.map_camera_state.clear()
+	_window_size = get_tree().root.size
 
 
 func after_test() -> void:
 	GameState.reset()
 	SceneManager.map_camera_state.clear()
+	get_tree().root.size = _window_size
 
 
 func _chunk_world_size() -> float:
@@ -51,6 +61,49 @@ func _own(x: int, y: int, settlement_name: String) -> Dictionary:
 		"productionPerHour": {},
 		"capacity": 100,
 	}
+
+
+## Cudza osada: kontrakt API nie przysyła dla niej "resources" i po tym poznaje ją Settlement.
+func _foreign(cell: Vector2i, settlement_name: String) -> Dictionary:
+	return {"x": cell.x, "y": cell.y, "ownerId": 9, "name": settlement_name}
+
+
+func _hud() -> CanvasLayer:
+	var hud: CanvasLayer = auto_free(HUD_SCENE.instantiate())
+	add_child(hud)
+	return hud
+
+
+func _sheets() -> CanvasLayer:
+	var s: CanvasLayer = auto_free(SHEETS_SCENE.instantiate())
+	add_child(s)
+	return s
+
+
+## Zmienia rozmiar okna (a więc i widocznego prostokąta viewportu) i czeka, aż kontenery
+## przesortują się po odroczonym queue_sort - dopiero wtedy rozmiary są ostateczne.
+func _resize_window(size: Vector2i) -> void:
+	get_tree().root.size = size
+	await await_idle_frame()
+	await await_idle_frame()
+	await await_idle_frame()
+
+
+## Tap tą samą drogą co MapCamera._unhandled_input: przyciśnięcie i puszczenie jednym palcem
+## w tym samym punkcie, czyli poniżej progu czasu i dystansu MapCamera.
+func _tap(camera: MapCamera, screen_pos: Vector2) -> void:
+	for pressed in [true, false]:
+		var e := InputEventScreenTouch.new()
+		e.index = 0
+		e.pressed = pressed
+		e.position = screen_pos
+		camera._on_touch(e)
+
+
+## Ustawia kamerę tak, żeby wskazany punkt ekranu pokrywał się ze środkiem komórki.
+func _aim(camera: MapCamera, screen_pos: Vector2, cell: Vector2i) -> void:
+	var half := camera.get_viewport_rect().size / 2.0
+	camera.position = WorldGrid.cell_to_world(cell) - (screen_pos - half) / camera.zoom
 
 
 func _spawn_map(cam_pos: Vector2) -> Node2D:
@@ -295,4 +348,72 @@ func test_coord_panel_follows_camera() -> void:
 	var world_map := _spawn_map(WorldGrid.cell_to_world(HOME_CELL))
 	await _settle(world_map)
 	world_map._process(0.0)
-	assert_str(world_map.coord_label.text).is_equal("X 103 · Y 100 · zoom 1.0")
+	assert_str(world_map.coord_label.text).is_equal("X %d · Y %d · zoom 1.0" % [HOME_CELL.x, HOME_CELL.y])
+
+
+## Regresja: HUD przy size_changed przepina ResourceGrid między BarRows a ProfileRow, a
+## przesortowanie kontenera jest odroczone do fazy layoutu. Widok podpięty do tego samego
+## size_changed odczytuje więc bar_height() sprzed przepięcia i zostaje z nim na zawsze -
+## chrome mapy wisi o cały rząd kart za nisko (albo za wysoko) aż do kolejnego obrotu.
+func test_map_ui_follows_hud_bar_after_rotation() -> void:
+	_apply_world()
+	var hud := _hud()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var m := MedievalTheme.px(WORLD_MAP_SCRIPT.UI_MARGIN)
+	assert_float(world_map.coord_panel.offset_top).is_equal_approx(hud.bar_height() + m, 0.5)
+
+	await _resize_window(LANDSCAPE_WINDOW)
+	# Obrót musi realnie zmienić wysokość paska, inaczej test przechodziłby bez naprawy.
+	assert_object(hud.resource_grid.get_parent()).is_same(hud.profile_row)
+	assert_float(world_map.coord_panel.offset_top).is_equal_approx(hud.bar_height() + m, 0.5)
+	assert_float(world_map.back_plaque.position.y).is_equal_approx(hud.bar_height() + m, 0.5)
+
+
+## Pasek HUD jest przezroczysty dla inputu (żeby dało się z niego przeciągać mapę), więc
+## stacjonarny tap w kartę zasobu docierał do MapCamera i uruchamiał trafienie w wyspę.
+func test_tap_inside_hud_bar_does_not_open_inspect_sheet() -> void:
+	_apply_world()
+	GameState.apply_settlements([_foreign(FOREIGN_CELL, "Szara Skała")])
+	var hud := _hud()
+	var sheets := _sheets()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var camera: MapCamera = world_map.camera
+	var vis := camera.get_viewport_rect().size
+	assert_float(hud.bar_height()).is_greater(0.0)
+
+	var bar_point := Vector2(vis.x / 2.0, hud.bar_height() / 2.0)
+	_aim(camera, bar_point, FOREIGN_CELL)
+	_tap(camera, bar_point)
+	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_false()
+
+	# Kontrola: ten sam tap poniżej paska nadal otwiera arkusz.
+	var below := vis / 2.0
+	_aim(camera, below, FOREIGN_CELL)
+	_tap(camera, below)
+	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_true()
+	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
+
+
+## Ta sama martwa strefa od drugiej strony: tap w pasek nad własną wyspą nie może przestawić
+## osady aktywnej ani przerzucić gracza do widoku osady.
+func test_tap_inside_hud_bar_does_not_enter_own_settlement() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa")])
+	var hud := _hud()
+	var _sheets_layer := _sheets()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var camera: MapCamera = world_map.camera
+	var vis := camera.get_viewport_rect().size
+
+	var view_before := SceneManager.current_view
+	var bar_point := Vector2(vis.x / 2.0, hud.bar_height() / 2.0)
+	_aim(camera, bar_point, HOME_CELL)
+	_tap(camera, bar_point)
+	await await_idle_frame()
+	assert_object(GameState.active_settlement).is_null()
+	assert_str(SceneManager.current_view).is_equal(view_before)

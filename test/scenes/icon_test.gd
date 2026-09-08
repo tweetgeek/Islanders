@@ -32,6 +32,11 @@ func test_every_kind_draws_one_frame() -> void:
 		root.add_child(icon)
 	await await_idle_frame()
 	assert_int(root.get_child_count()).is_equal(Icon.KINDS.size())
+	# _draw() rozsyła po nazwie zbudowanej z kind, więc brak metody to cichy błąd w czasie
+	# działania - sama liczba dzieci jest prawdziwa jeszcze zanim cokolwiek się narysuje.
+	for icon: Icon in root.get_children():
+		assert_bool(icon.has_method("_draw_" + String(icon.kind))) \
+			.override_failure_message("brak metody _draw_%s" % icon.kind).is_true()
 
 
 func test_icon_ignores_mouse() -> void:

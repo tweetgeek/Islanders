@@ -5,8 +5,6 @@ extends PanelContainer
 
 signal close_requested
 
-const ICON := 40.0   # mniejsza niż w BuildingSheet: nagłówek arkusza wyspy jest niższy
-
 @onready var grabber: Panel = $SheetMargin/Body/Grabber
 @onready var biome_icon: Icon = $SheetMargin/Body/Header/HBox/BiomeIcon
 @onready var name_label: Label = $SheetMargin/Body/Header/HBox/Name
@@ -20,13 +18,8 @@ const ICON := 40.0   # mniejsza niż w BuildingSheet: nagłówek arkusza wyspy j
 
 
 func _ready() -> void:
-	SheetStyle.apply_common(self, grabber)
-	biome_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(ICON)
-	biome_icon.color = MedievalTheme.CREAM
-	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SheetStyle.CLOSE)
-	Icon.into_button(close_button, &"close", MedievalTheme.CREAM, MedievalTheme.px(7))
+	SheetStyle.apply_common(self, grabber, biome_icon, close_button, close_requested, 40.0)
 	subtitle.add_theme_color_override("font_color", MedievalTheme.INK_SOFT)
-	close_button.pressed.connect(func() -> void: close_requested.emit())
 
 
 ## Zwraca false (i push_error) dla komórki bez wyspy.
@@ -38,7 +31,10 @@ func open(coord: Vector2i) -> bool:
 	var s := GameState.settlement_at(coord)
 	biome_icon.kind = ResourceTypes.ICONS[Biome.resources(island.biome)[0]]
 	biome_badge.text = Biome.key(island.biome)
+	# remove_child przed queue_free: dwa open() w jednej klatce zostawiłyby stare chipy
+	# podpięte pod DepositRow aż do końca klatki (tak samo robi FleetsSheet.refresh).
 	for c in deposit_row.get_children():
+		deposit_row.remove_child(c)
 		c.queue_free()
 	if s != null:
 		name_label.text = s.name

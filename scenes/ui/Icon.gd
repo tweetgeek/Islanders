@@ -64,10 +64,6 @@ func _draw() -> void:
 	call("_draw_" + String(kind))
 
 
-func _p(x: float, y: float) -> Vector2:
-	return Vector2(x, y)
-
-
 func _poly(points: Array) -> void:
 	var packed := PackedVector2Array()
 	for pt in points:
@@ -80,9 +76,9 @@ func _line(a: Vector2, b: Vector2, width: float = 2.0) -> void:
 
 
 func _draw_wood() -> void:
-	_line(_p(4, 17), _p(20, 7), 4.5)
-	_line(_p(4, 10), _p(14, 4), 3.0)
-	_line(_p(11, 20), _p(20, 14), 3.0)
+	_line(Vector2(4, 17), Vector2(20, 7), 4.5)
+	_line(Vector2(4, 10), Vector2(14, 4), 3.0)
+	_line(Vector2(11, 20), Vector2(20, 14), 3.0)
 
 
 func _draw_stone() -> void:
@@ -93,34 +89,34 @@ func _draw_stone() -> void:
 
 
 func _draw_food() -> void:
-	_line(_p(12, 21), _p(12, 6), 2.0)
-	draw_circle(_p(12, 5), 2.6, color)
-	draw_circle(_p(8, 9), 2.4, color)
-	draw_circle(_p(16, 9), 2.4, color)
-	draw_circle(_p(9, 13.5), 2.2, color)
-	draw_circle(_p(15, 13.5), 2.2, color)
+	_line(Vector2(12, 21), Vector2(12, 6), 2.0)
+	draw_circle(Vector2(12, 5), 2.6, color)
+	draw_circle(Vector2(8, 9), 2.4, color)
+	draw_circle(Vector2(16, 9), 2.4, color)
+	draw_circle(Vector2(9, 13.5), 2.2, color)
+	draw_circle(Vector2(15, 13.5), 2.2, color)
 
 
 func _draw_iron() -> void:
-	_poly([_p(3, 18), _p(21, 18), _p(17.5, 9), _p(6.5, 9)])
+	_poly([Vector2(3, 18), Vector2(21, 18), Vector2(17.5, 9), Vector2(6.5, 9)])
 
 
 func _draw_sulfur() -> void:
-	_poly([_p(12, 3), _p(21.5, 20.5), _p(2.5, 20.5)])
-	draw_circle(_p(12, 15.5), 2.4, MedievalTheme.PARCHMENT)
+	_poly([Vector2(12, 3), Vector2(21.5, 20.5), Vector2(2.5, 20.5)])
+	draw_circle(Vector2(12, 15.5), 2.4, MedievalTheme.PARCHMENT)
 
 
 func _draw_town_hall() -> void:
-	draw_rect(Rect2(_p(5, 12), _p(14, 9)), color)
-	_poly([_p(3, 12.5), _p(12, 5), _p(21, 12.5)])
-	draw_rect(Rect2(_p(15, 3), _p(4, 6)), color)
-	draw_rect(Rect2(_p(10.5, 15), _p(3, 6)), MedievalTheme.PARCHMENT)
+	draw_rect(Rect2(Vector2(5, 12), Vector2(14, 9)), color)
+	_poly([Vector2(3, 12.5), Vector2(12, 5), Vector2(21, 12.5)])
+	draw_rect(Rect2(Vector2(15, 3), Vector2(4, 6)), color)
+	draw_rect(Rect2(Vector2(10.5, 15), Vector2(3, 6)), MedievalTheme.PARCHMENT)
 
 
 func _draw_barracks() -> void:
-	_poly([_p(4, 4), _p(20, 4), _p(20, 12), _p(12, 21), _p(4, 12)])
-	_line(_p(12, 7), _p(12, 17), 1.6)
-	_line(_p(7, 9), _p(17, 9), 1.6)
+	_poly([Vector2(4, 4), Vector2(20, 4), Vector2(20, 12), Vector2(12, 21), Vector2(4, 12)])
+	_line(Vector2(12, 7), Vector2(12, 17), 1.6)
+	_line(Vector2(7, 9), Vector2(17, 9), 1.6)
 
 
 func _draw_shipyard() -> void:
@@ -128,87 +124,87 @@ func _draw_shipyard() -> void:
 
 
 func _draw_anchor() -> void:
-	draw_arc(_p(12, 5), 2.2, 0.0, TAU, 20, color, 1.8, true)
-	_line(_p(12, 7.5), _p(12, 20), 2.4)
-	_line(_p(7, 10), _p(17, 10), 2.0)
-	draw_arc(_p(12, 13), 7.0, 0.3, PI - 0.3, 20, color, 2.4, true)
+	draw_arc(Vector2(12, 5), 2.2, 0.0, TAU, 20, color, 1.8, true)
+	_line(Vector2(12, 7.5), Vector2(12, 20), 2.4)
+	_line(Vector2(7, 10), Vector2(17, 10), 2.0)
+	draw_arc(Vector2(12, 13), 7.0, 0.3, PI - 0.3, 20, color, 2.4, true)
 
 
 func _draw_warehouse() -> void:
-	draw_rect(Rect2(_p(4, 9), _p(16, 12)), color)
-	_poly([_p(3, 9), _p(12, 4), _p(21, 9)])
-	_line(_p(4, 14.5), _p(20, 14.5), 1.4)
-	draw_rect(Rect2(_p(10, 15.5), _p(4, 5.5)), MedievalTheme.PARCHMENT)
+	draw_rect(Rect2(Vector2(4, 9), Vector2(16, 12)), color)
+	_poly([Vector2(3, 9), Vector2(12, 4), Vector2(21, 9)])
+	_line(Vector2(4, 14.5), Vector2(20, 14.5), 1.4)
+	draw_rect(Rect2(Vector2(10, 15.5), Vector2(4, 5.5)), MedievalTheme.PARCHMENT)
 
 
 func _draw_map() -> void:
-	_poly([_p(3, 5), _p(9, 3), _p(15, 5), _p(21, 3), _p(21, 19), _p(15, 21), _p(9, 19), _p(3, 21)])
-	draw_line(_p(9, 3), _p(9, 19), MedievalTheme.PARCHMENT, 1.4, true)
-	draw_line(_p(15, 5), _p(15, 21), MedievalTheme.PARCHMENT, 1.4, true)
+	_poly([Vector2(3, 5), Vector2(9, 3), Vector2(15, 5), Vector2(21, 3), Vector2(21, 19), Vector2(15, 21), Vector2(9, 19), Vector2(3, 21)])
+	draw_line(Vector2(9, 3), Vector2(9, 19), MedievalTheme.PARCHMENT, 1.4, true)
+	draw_line(Vector2(15, 5), Vector2(15, 21), MedievalTheme.PARCHMENT, 1.4, true)
 
 
 func _draw_fleet() -> void:
-	_line(_p(11, 3), _p(11, 16), 2.0)
-	_poly([_p(12, 4), _p(20, 15), _p(12, 15)])
-	_poly([_p(3, 17), _p(21, 17), _p(18, 21), _p(6, 21)])
+	_line(Vector2(11, 3), Vector2(11, 16), 2.0)
+	_poly([Vector2(12, 4), Vector2(20, 15), Vector2(12, 15)])
+	_poly([Vector2(3, 17), Vector2(21, 17), Vector2(18, 21), Vector2(6, 21)])
 
 
 func _draw_people() -> void:
-	draw_circle(_p(8, 8), 3.2, color)
-	draw_circle(_p(16.5, 8), 3.2, color)
-	_poly([_p(3, 21), _p(3, 16), _p(6, 13), _p(10, 13), _p(13, 16), _p(13, 21)])
-	_poly([_p(11.5, 21), _p(11.5, 16), _p(14.5, 13), _p(18.5, 13), _p(21.5, 16), _p(21.5, 21)])
+	draw_circle(Vector2(8, 8), 3.2, color)
+	draw_circle(Vector2(16.5, 8), 3.2, color)
+	_poly([Vector2(3, 21), Vector2(3, 16), Vector2(6, 13), Vector2(10, 13), Vector2(13, 16), Vector2(13, 21)])
+	_poly([Vector2(11.5, 21), Vector2(11.5, 16), Vector2(14.5, 13), Vector2(18.5, 13), Vector2(21.5, 16), Vector2(21.5, 21)])
 
 
 func _draw_gold() -> void:
-	draw_circle(_p(12, 12), 9.0, color)
-	draw_arc(_p(12, 12), 5.0, 0.0, TAU, 32, MedievalTheme.PARCHMENT, 1.8, true)
+	draw_circle(Vector2(12, 12), 9.0, color)
+	draw_arc(Vector2(12, 12), 5.0, 0.0, TAU, 32, MedievalTheme.PARCHMENT, 1.8, true)
 
 
 func _draw_plus() -> void:
-	_line(_p(12, 4), _p(12, 20), 3.0)
-	_line(_p(4, 12), _p(20, 12), 3.0)
+	_line(Vector2(12, 4), Vector2(12, 20), 3.0)
+	_line(Vector2(4, 12), Vector2(20, 12), 3.0)
 
 
 func _draw_minus() -> void:
-	_line(_p(4, 12), _p(20, 12), 3.0)
+	_line(Vector2(4, 12), Vector2(20, 12), 3.0)
 
 
 func _draw_close() -> void:
-	_line(_p(5, 5), _p(19, 19), 2.6)
-	_line(_p(19, 5), _p(5, 19), 2.6)
+	_line(Vector2(5, 5), Vector2(19, 19), 2.6)
+	_line(Vector2(19, 5), Vector2(5, 19), 2.6)
 
 
 func _draw_back() -> void:
-	_line(_p(20, 12), _p(6, 12), 2.6)
-	_line(_p(6, 12), _p(12, 6), 2.6)
-	_line(_p(6, 12), _p(12, 18), 2.6)
+	_line(Vector2(20, 12), Vector2(6, 12), 2.6)
+	_line(Vector2(6, 12), Vector2(12, 6), 2.6)
+	_line(Vector2(6, 12), Vector2(12, 18), 2.6)
 
 
 func _draw_raid() -> void:
-	_line(_p(4, 20), _p(19, 5), 2.6)
-	_line(_p(20, 20), _p(5, 5), 2.6)
-	_line(_p(4, 15), _p(9, 20), 2.0)
-	_line(_p(20, 15), _p(15, 20), 2.0)
+	_line(Vector2(4, 20), Vector2(19, 5), 2.6)
+	_line(Vector2(20, 20), Vector2(5, 5), 2.6)
+	_line(Vector2(4, 15), Vector2(9, 20), 2.0)
+	_line(Vector2(20, 15), Vector2(15, 20), 2.0)
 
 
 func _draw_trade() -> void:
-	draw_rect(Rect2(_p(4, 9), _p(16, 11)), color)
-	draw_arc(_p(12, 9), 4.0, PI, TAU, 16, color, 2.0, true)
-	draw_line(_p(12, 9), _p(12, 20), MedievalTheme.PARCHMENT, 1.6, true)
+	draw_rect(Rect2(Vector2(4, 9), Vector2(16, 11)), color)
+	draw_arc(Vector2(12, 9), 4.0, PI, TAU, 16, color, 2.0, true)
+	draw_line(Vector2(12, 9), Vector2(12, 20), MedievalTheme.PARCHMENT, 1.6, true)
 
 
 func _draw_scout() -> void:
-	_poly([_p(4, 16), _p(8, 20), _p(20, 8), _p(16, 4)])
-	draw_circle(_p(5.5, 18.5), 2.6, color)
-	_line(_p(14, 7), _p(17, 10), 1.2)
+	_poly([Vector2(4, 16), Vector2(8, 20), Vector2(20, 8), Vector2(16, 4)])
+	draw_circle(Vector2(5.5, 18.5), 2.6, color)
+	_line(Vector2(14, 7), Vector2(17, 10), 1.2)
 
 
 func _draw_colonize() -> void:
-	_line(_p(6, 3), _p(6, 21), 2.2)
-	_poly([_p(7, 4), _p(20, 8), _p(7, 12)])
+	_line(Vector2(6, 3), Vector2(6, 21), 2.2)
+	_poly([Vector2(7, 4), Vector2(20, 8), Vector2(7, 12)])
 
 
 func _draw_return() -> void:
-	draw_arc(_p(12, 12), 7.0, -PI / 2.0, PI, 24, color, 2.4, true)
-	_poly([_p(3, 12), _p(8, 8), _p(8, 16)])
+	draw_arc(Vector2(12, 12), 7.0, -PI / 2.0, PI, 24, color, 2.4, true)
+	_poly([Vector2(3, 12), Vector2(8, 8), Vector2(8, 16)])

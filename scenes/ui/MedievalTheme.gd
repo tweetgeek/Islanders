@@ -95,10 +95,6 @@ static func display_font() -> Font:
 	return _display
 
 
-static func _variation(t: Theme, name: StringName, base: StringName) -> void:
-	t.set_type_variation(name, base)
-
-
 static func build() -> Theme:
 	var t := Theme.new()
 	var display := display_font()
@@ -106,30 +102,27 @@ static func build() -> Theme:
 	var body_semi: Font = FONT_BODY_SEMI
 	t.default_font = body
 	t.default_font_size = px(15)
+	# Wariacje zakładane hurtem ze słownika, żeby VARIATIONS było jedynym ich spisem.
+	for variation: StringName in VARIATIONS:
+		t.set_type_variation(variation, VARIATIONS[variation])
 
 	# --- Label ---------------------------------------------------------------
 	t.set_font("font", "Label", body)
 	t.set_color("font_color", "Label", INK)
 	t.set_font_size("font_size", "Label", px(15))
-	_variation(t, &"Title", &"Label")
 	t.set_font("font", "Title", display)
 	t.set_color("font_color", "Title", CREAM)
 	t.set_font_size("font_size", "Title", px(17))
-	_variation(t, &"Caption", &"Label")
 	t.set_color("font_color", "Caption", CREAM_SOFT)
 	t.set_font_size("font_size", "Caption", px(12))
-	_variation(t, &"SectionHeader", &"Label")
 	t.set_font("font", "SectionHeader", display)
 	t.set_color("font_color", "SectionHeader", SECTION)
 	t.set_font_size("font_size", "SectionHeader", px(11))
-	_variation(t, &"Amount", &"Label")
 	t.set_font("font", "Amount", body_semi)
 	t.set_color("font_color", "Amount", INK)
 	t.set_font_size("font_size", "Amount", px(14))
-	_variation(t, &"Rate", &"Label")
 	t.set_color("font_color", "Rate", RATE)
 	t.set_font_size("font_size", "Rate", px(11))
-	_variation(t, &"Badge", &"Label")
 	t.set_font("font", "Badge", display)
 	t.set_color("font_color", "Badge", INK)
 	t.set_font_size("font_size", "Badge", px(10))
@@ -137,25 +130,18 @@ static func build() -> Theme:
 
 	# --- Panele --------------------------------------------------------------
 	t.set_stylebox("panel", "PanelContainer", flat(PARCHMENT, OAK_EDGE, 3))
-	_variation(t, &"BarPanel", &"PanelContainer")
 	var bar := flat(OAK, BRASS, 0, 0, 0, 0)
 	bar.border_width_bottom = px(2)
 	t.set_stylebox("panel", "BarPanel", bar)
-	_variation(t, &"ResCard", &"PanelContainer")
 	t.set_stylebox("panel", "ResCard", flat(PARCHMENT, OAK_DEEP, 4, 1, 8, 6))
-	_variation(t, &"Chip", &"PanelContainer")
 	t.set_stylebox("panel", "Chip", flat(OAK_DEEP, BRASS, 4, 1, 8, 5))
-	_variation(t, &"Plaque", &"PanelContainer")
 	t.set_stylebox("panel", "Plaque", plaque())
-	_variation(t, &"Sheet", &"PanelContainer")
 	var sheet := flat(PARCHMENT, BRASS, 0, 0, 14, 14)
 	sheet.border_width_top = px(3)
 	sheet.shadow_color = Color(0.08, 0.04, 0.0, 0.45)
 	sheet.shadow_size = px(16)
 	t.set_stylebox("panel", "Sheet", sheet)
-	_variation(t, &"ModalHeader", &"PanelContainer")
 	t.set_stylebox("panel", "ModalHeader", flat(OAK, OAK, 0, 0, 14, 9))
-	_variation(t, &"FleetCard", &"PanelContainer")
 	var fleet := flat(PARCHMENT, OAK_EDGE, 3, 1, 11, 10)
 	fleet.border_width_left = px(5)
 	t.set_stylebox("panel", "FleetCard", fleet)
@@ -171,7 +157,6 @@ static func build() -> Theme:
 	t.set_stylebox("hover", "Button", flat(VELLUM, OAK, 4, 1, 14, 14))
 	t.set_stylebox("pressed", "Button", flat(VELLUM, OAK, 4, 1, 14, 14))
 	t.set_stylebox("disabled", "Button", flat(Color(0, 0, 0, 0), Color("9a8a70"), 4, 1, 14, 14))
-	_variation(t, &"Primary", &"Button")
 	t.set_color("font_color", "Primary", INK)
 	t.set_color("font_hover_color", "Primary", INK)
 	t.set_color("font_pressed_color", "Primary", INK)
@@ -185,14 +170,13 @@ static func build() -> Theme:
 	prim_down.content_margin_top = px(17)   # 3 px skoku w dół, cień znika
 	prim_down.content_margin_bottom = px(11)
 	t.set_stylebox("pressed", "Primary", prim_down)
-	_variation(t, &"Danger", &"Button")
 	t.set_color("font_color", "Danger", BLOOD)
 	t.set_color("font_hover_color", "Danger", BLOOD)
 	t.set_color("font_pressed_color", "Danger", BLOOD)
 	t.set_stylebox("normal", "Danger", flat(Color(0, 0, 0, 0), BLOOD, 4, 2, 14, 14))
 	t.set_stylebox("hover", "Danger", flat(SHORT_BG, BLOOD, 4, 2, 14, 14))
 	t.set_stylebox("pressed", "Danger", flat(SHORT_BG, BLOOD, 4, 2, 14, 14))
-	_variation(t, &"ToolButton", &"Button")      # 46 px dębowe przyciski docku i mapy
+	# ToolButton: 46 px dębowe przyciski docku i mapy
 	t.set_color("font_color", "ToolButton", CREAM)
 	t.set_color("font_hover_color", "ToolButton", CREAM)
 	t.set_color("font_pressed_color", "ToolButton", CREAM)
@@ -205,9 +189,7 @@ static func build() -> Theme:
 	t.set_stylebox("background", "ProgressBar", flat(RULE, OAK_EDGE, 2, 1, 0, 0))
 	t.set_stylebox("fill", "ProgressBar", flat(BRASS, BRASS, 2, 0, 0, 0))
 	t.set_color("font_color", "ProgressBar", INK_SOFT)
-	_variation(t, &"RaidBar", &"ProgressBar")
 	t.set_stylebox("fill", "RaidBar", flat(RAID, RAID, 2, 0, 0, 0))
-	_variation(t, &"ScoutBar", &"ProgressBar")
 	t.set_stylebox("fill", "ScoutBar", flat(RATE, RATE, 2, 0, 0, 0))
 
 	# --- Reszta --------------------------------------------------------------

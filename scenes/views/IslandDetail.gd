@@ -28,6 +28,9 @@ func _ready() -> void:
 	GameState.active_settlement_changed.connect(_refresh)
 	GameState.settlement_updated.connect(_on_settlement_updated)
 	get_viewport().size_changed.connect(_layout)
+	var hud := _hud()
+	if hud != null:
+		hud.bar_height_changed.connect(_layout)
 	_refresh()
 	_layout()
 
@@ -69,8 +72,12 @@ func _layout() -> void:
 	hint_panel.offset_bottom = -(vis.y - bottom)
 
 
+func _hud() -> Node:
+	return get_tree().get_first_node_in_group("hud")
+
+
 func _hud_bar_height() -> float:
-	var hud := get_tree().get_first_node_in_group("hud")
+	var hud := _hud()
 	return hud.bar_height() if hud != null else 0.0
 
 

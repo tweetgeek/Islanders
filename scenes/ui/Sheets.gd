@@ -87,6 +87,8 @@ func close() -> void:
 ## Otwiera panel: stan (_current, is_open()) jest widoczny od razu, ale sam layout+animacja
 ## czeka jedną klatkę na panel.show() (patrz _layout()) - to opóźnienie nie jest widoczne
 ## dla wywołujących, bo nie czekają na _open().
+## Niezmiennik: żaden wywołujący nie otwiera tego samego panelu dwa razy w jednej klatce -
+## drugie wywołanie zastałoby pierwsze wciąż przed swoim await i rozjechałoby animację.
 func _open(panel: Control, fraction: float) -> void:
 	_kill_tween()
 	for s in _all_sheets():

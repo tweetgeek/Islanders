@@ -8,23 +8,21 @@ extends PanelContainer
 signal upgrade_requested(coord: Vector2i, building: int)
 signal close_requested
 
-const ICON := 46.0   # większa niż w InspectSheet: nagłówek arkusza budynku jest wyższy
-
-@onready var grabber: Panel = $SheetMargin/ModalBody/Grabber
-@onready var building_icon: Icon = $SheetMargin/ModalBody/Header/HBox/BuildingIcon
-@onready var name_label: Label = $SheetMargin/ModalBody/Header/HBox/TitleBox/NameRow/Name
-@onready var level_badge: Label = $SheetMargin/ModalBody/Header/HBox/TitleBox/NameRow/LevelBadge
-@onready var subtitle: Label = $SheetMargin/ModalBody/Header/HBox/TitleBox/Subtitle
-@onready var close_button: Button = $SheetMargin/ModalBody/Header/HBox/CloseButton
-@onready var description: Label = $SheetMargin/ModalBody/Description
-@onready var cost_section: VBoxContainer = $SheetMargin/ModalBody/CostSection
-@onready var cost_header: Label = $SheetMargin/ModalBody/CostSection/CostHeader
-@onready var cost_grid: GridContainer = $SheetMargin/ModalBody/CostSection/CostGrid
-@onready var timer_section: VBoxContainer = $SheetMargin/ModalBody/TimerSection
-@onready var timer_label: Label = $SheetMargin/ModalBody/TimerSection/TimerRow/TimerLabel
-@onready var construction_bar: ProgressBar = $SheetMargin/ModalBody/TimerSection/ConstructionBar
-@onready var cancel_button: Button = $SheetMargin/ModalBody/ActionRow/CancelButton
-@onready var upgrade_button: Button = $SheetMargin/ModalBody/ActionRow/UpgradeButton
+@onready var grabber: Panel = $SheetMargin/Body/Grabber
+@onready var building_icon: Icon = $SheetMargin/Body/Header/HBox/BuildingIcon
+@onready var name_label: Label = $SheetMargin/Body/Header/HBox/TitleBox/NameRow/Name
+@onready var level_badge: Label = $SheetMargin/Body/Header/HBox/TitleBox/NameRow/LevelBadge
+@onready var subtitle: Label = $SheetMargin/Body/Header/HBox/TitleBox/Subtitle
+@onready var close_button: Button = $SheetMargin/Body/Header/HBox/CloseButton
+@onready var description: Label = $SheetMargin/Body/Description
+@onready var cost_section: VBoxContainer = $SheetMargin/Body/CostSection
+@onready var cost_header: Label = $SheetMargin/Body/CostSection/CostHeader
+@onready var cost_grid: GridContainer = $SheetMargin/Body/CostSection/CostGrid
+@onready var timer_section: VBoxContainer = $SheetMargin/Body/TimerSection
+@onready var timer_label: Label = $SheetMargin/Body/TimerSection/TimerRow/TimerLabel
+@onready var construction_bar: ProgressBar = $SheetMargin/Body/TimerSection/ConstructionBar
+@onready var cancel_button: Button = $SheetMargin/Body/ActionRow/CancelButton
+@onready var upgrade_button: Button = $SheetMargin/Body/ActionRow/UpgradeButton
 
 ## zasób -> PanelContainer (chip kosztu)
 var cost_chips: Dictionary = {}
@@ -36,16 +34,11 @@ var _total := 0.0
 
 
 func _ready() -> void:
-	SheetStyle.apply_common(self, grabber)
-	building_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(ICON)
-	building_icon.color = MedievalTheme.CREAM
-	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SheetStyle.CLOSE)
-	Icon.into_button(close_button, &"close", MedievalTheme.CREAM, MedievalTheme.px(7))
+	SheetStyle.apply_common(self, grabber, building_icon, close_button, close_requested, 46.0)
 	for b in [cancel_button, upgrade_button]:
 		b.custom_minimum_size.y = MedievalTheme.px(48)
 	cost_grid.add_theme_constant_override("h_separation", MedievalTheme.px(6))
 	_build_cost_chips()
-	close_button.pressed.connect(func() -> void: close_requested.emit())
 	cancel_button.pressed.connect(func() -> void: close_requested.emit())
 	upgrade_button.pressed.connect(_on_upgrade)
 	set_process(false)

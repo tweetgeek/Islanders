@@ -7,7 +7,6 @@ const TOOL := 46.0
 const MARGIN := 10.0
 const TICK := 1.0
 
-@onready var root: Control = $Root
 @onready var fleets_button: Button = $Root/FleetsButton
 @onready var badge: Label = $Root/FleetsButton/Badge
 @onready var map_button: Button = $Root/MapButton
