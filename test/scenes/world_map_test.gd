@@ -106,7 +106,7 @@ func _still_parented(container: Node, node) -> bool:
 	return (node as Node).get_parent() == container
 
 
-func test_po_otwarciu_mapy_zaladowane_chunki_odpowiadaja_widocznemu_obszarowi_z_marginesem() -> void:
+func test_loaded_chunks_match_visible_area_with_margin_after_opening_map() -> void:
 	_apply_world()
 	var world_map := _spawn_map(START_POS)
 	await _settle(world_map)
@@ -120,7 +120,7 @@ func test_po_otwarciu_mapy_zaladowane_chunki_odpowiadaja_widocznemu_obszarowi_z_
 		assert_bool(loaded.has(key)).is_true()
 
 
-func test_odsuniecie_kamery_usuwa_niechciane_chunki_ze_slownika_i_z_drzewa() -> void:
+func test_moving_camera_away_evicts_chunks_from_dict_and_tree() -> void:
 	_apply_world()
 	var world_map := _spawn_map(START_POS)
 	await _settle(world_map)
@@ -143,7 +143,7 @@ func test_odsuniecie_kamery_usuwa_niechciane_chunki_ze_slownika_i_z_drzewa() -> 
 	assert_int(evicted_count).is_greater(0)
 
 
-func test_dlugie_przesuwanie_kamery_nie_powoduje_nieograniczonego_wzrostu_wezlow() -> void:
+func test_long_camera_pan_does_not_grow_nodes_unbounded() -> void:
 	_apply_world()
 	var world_map := _spawn_map(START_POS)
 	await _settle(world_map)
@@ -164,7 +164,7 @@ func test_dlugie_przesuwanie_kamery_nie_powoduje_nieograniczonego_wzrostu_wezlow
 		assert_int((world_map._loaded_chunks as Dictionary).size()).is_equal(expected.size())
 
 
-func test_powrot_kamery_w_to_samo_miejsce_nie_dubluje_chunkow() -> void:
+func test_returning_camera_to_same_spot_does_not_duplicate_chunks() -> void:
 	_apply_world()
 	var world_map := _spawn_map(START_POS)
 	await _settle(world_map)
@@ -189,7 +189,7 @@ func test_powrot_kamery_w_to_samo_miejsce_nie_dubluje_chunkow() -> void:
 		assert_object(chunks_container.get_node_or_null(node_name)).is_not_null()
 
 
-func test_pojedyncza_klatka_nie_przekracza_budzetu_spawnu_na_klatke() -> void:
+func test_single_frame_respects_spawn_budget() -> void:
 	_apply_world()
 	var world_map := _spawn_map(START_POS)
 	await _settle(world_map)
@@ -212,7 +212,7 @@ func test_pojedyncza_klatka_nie_przekracza_budzetu_spawnu_na_klatke() -> void:
 	assert_int(loaded_after - loaded_before).is_equal(budget)
 
 
-func test_aktualizacja_osady_przebudowuje_chunk_zamiast_go_dublowac() -> void:
+func test_settlement_update_rebuilds_chunk_without_duplicating() -> void:
 	_apply_world()
 	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Pierwsza")])
 	var world_map := _spawn_map(WorldGrid.cell_to_world(HOME_CELL))

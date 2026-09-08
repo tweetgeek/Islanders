@@ -7,6 +7,11 @@ const NARROW_WIDTH := 700.0
 const ICON_SIZE := 24.0
 const DIMMED := 0.45
 
+## TopBar celowo zostaje przy domyślnym mouse_filter = STOP: pochłania wejście we własnym
+## pasku, więc tapnięcie w HUD nie otwiera wyspy pod spodem, a mimo to nie blokuje
+## panoramowania mapy - pilnuje tego sprawdzenie smoke testu zaczynające przeciągnięcie
+## dokładnie na ikonie zasobu. Kontrolki dekoracyjne LEŻĄCE NAD światem gry to inna sprawa:
+## pełnoekranowe tła (Background/Sea) muszą mieć IGNORE, bo inaczej połykają całe wejście.
 @onready var top_bar: PanelContainer = $TopBar
 @onready var chips: HBoxContainer = $TopBar/HBox/Chips
 @onready var population_label: Label = $TopBar/HBox/Population

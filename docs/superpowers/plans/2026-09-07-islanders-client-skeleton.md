@@ -399,7 +399,7 @@ git commit -m "Add TimeUtil and Coord core helpers"
 - Consumes: nic (stałe).
 - Produces: `ResourceTypes.ALL: Array[String]`, `ResourceTypes.COLORS`, `ResourceTypes.LABELS`, `ResourceTypes.empty() -> Dictionary`, `ResourceTypes.normalize(raw: Variant) -> Dictionary` (zawsze 5 kluczy `float`).
 - Produces: `Buildings.Type` (enum 9 wartości), `Buildings.COMMON`, `Buildings.EXTRACTS`, `Buildings.key(t) -> String`, `Buildings.label(t) -> String`, `Buildings.from_key(k) -> int` (-1 gdy nieznany).
-- Produces: `Biome.Type` (TROPICAL, TEMPERATE, VOLCANIC), `Biome.key(b)`, `Biome.from_key(k) -> Biome.Type` (fallback TEMPERATE), `Biome.resources(b) -> Array`, `Biome.extraction_buildings(b) -> Array`, `Biome.slots(b) -> Array` (6 elementów), `Biome.colors(b) -> Dictionary` (klucze `land`, `sand`, `coast`, `crater`), `Biome.mock_production(b) -> Dictionary`.
+- Produces: `Biome.Type` (TROPICAL, TEMPERATE, VOLCANIC), `Biome.key(b)`, `Biome.from_key(k) -> Biome.Type` (fallback TEMPERATE), `Biome.resources(b) -> Array`, `Biome.extraction_buildings(b) -> Array`, `Biome.slots(b) -> Array` (6 elementów), `Biome.colors(b) -> Dictionary` (klucze `land`, `sand`, `coast`, `crater`).
 
 - [ ] **Krok 1: Napisz testy**
 
@@ -685,7 +685,7 @@ git commit -m "Add resource, building and biome definitions"
 - Test: `test/core/coastline_generator_test.gd`
 
 **Interfaces:**
-- Produces: `CoastlineGenerator.generate(seed_val: int, radius: float, points: int = 48, roughness: float = 0.35) -> PackedVector2Array`, `CoastlineGenerator.scaled(points, factor) -> PackedVector2Array`, `CoastlineGenerator.bay_angle(points) -> float`, `CoastlineGenerator.hash01(seed_val: int) -> float`, `CoastlineGenerator.ellipse_factor(seed_val) -> float`, stałe `ELLIPSE_MIN = 0.8`, `ELLIPSE_MAX = 1.2`.
+- Produces: `CoastlineGenerator.generate(seed_val: int, radius: float, points: int = 48, roughness: float = 0.35) -> PackedVector2Array`, `CoastlineGenerator.scaled(points, factor) -> PackedVector2Array`, `CoastlineGenerator.bay_angle(points) -> float`, `CoastlineGenerator._mix_seed01(seed_val: int) -> float` (prywatna dla pliku; zmieszanie surowego seeda, nie mylić z `WorldGrid.hash01`), `CoastlineGenerator.ellipse_factor(seed_val) -> float`, stałe `ELLIPSE_MIN = 0.8`, `ELLIPSE_MAX = 1.2`.
 
 Szum próbkowany na okręgu jednostkowym (`cos θ, sin θ`) gwarantuje zamknięcie konturu bez szwu. Zmierzony zakres szumu `TYPE_SIMPLEX_SMOOTH` z 3 oktawami to ok. ±0,6, więc przy `roughness = 0.35` promień waha się o ±21 %.
 
@@ -2150,7 +2150,9 @@ git commit -m "Add GameState autoload as single source of truth"
 
 **Interfaces:**
 - Consumes: `CoastlineGenerator`, `Biome`, `Buildings`, `ResourceTypes`, `Settlement`, `Fleet`, `WorldGrid`, `TimeUtil`, autoload `GameState` (tylko FleetRenderer).
-- Produces: `IslandGenerator` (`@tool`, `Node2D`) z eksportami `seed_val`, `radius`, `biome`, `show_slots`, `show_deposit`, polami `settlement: Settlement`, `deposit: Dictionary`, metodami `build()`, `slot_at(local_pos: Vector2) -> int` (-1 = brak), `contains(local_pos) -> bool`, statyczną `hexagon(r) -> PackedVector2Array`, stałą `POINTS = 48`. Węzły dzieci nazywają się `Shallow`, `Sand`, `Land`, `Crater` (tylko VOLCANIC), `Coast`, `Deposit`, `Slot_<KEY>`.
+- Produces: `IslandGenerator` (`@tool`, `Node2D`) z eksportami `seed_val`, `radius`, `biome`, `show_slots`, `show_deposit`, polami `settlement: Settlement`, `deposit: Dictionary`, metodami `build()`, `slot_at(local_pos: Vector2) -> int` (-1 = brak), statyczną
+  `contains(local_pos: Vector2, island_radius: float) -> bool` (wołana z `WorldMap._on_tapped`),
+  statyczną `hexagon(r) -> PackedVector2Array`, stałą `POINTS = 48`. Węzły dzieci nazywają się `Shallow`, `Sand`, `Land`, `Crater` (tylko VOLCANIC), `Coast`, `Deposit`, `Slot_<KEY>`.
 - Produces: `FleetRenderer` (`Node2D`) z metodą `refresh()`; rysuje w `_draw()`.
 
 W grze zmiana eksportów **nie** przebudowuje wyspy (setter działa tylko w edytorze); po ustawieniu pól wołaj `build()`. Detekcja tapu na slocie to test odległości w `slot_at`, bez `Area2D`.

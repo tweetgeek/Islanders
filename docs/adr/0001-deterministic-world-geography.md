@@ -7,7 +7,7 @@ Mapa świata w grze typu Tribal Wars jest stała, zmienia się tylko stan osad. 
 
 ## Konsekwencje
 
-- Algorytm placementu i kształtu jest częścią kontraktu klient–serwer; zmiana po otwarciu świata to migracja całego świata. Backend NestJS musi mieć identyczną implementację `WorldGrid` (ten sam szum, ten sam hash).
+- Algorytm placementu i promienia wyspy jest częścią kontraktu klient–serwer (patrz Załącznik); zmiana po otwarciu świata to migracja całego świata. Backend NestJS musi mieć identyczną implementację `WorldGrid` (ten sam szum, ten sam hash). Wygląd narysowanego wybrzeża (`CoastlineGenerator`) jest czysto renderingowy i NIE wchodzi w ten kontrakt — patrz Załącznik, sekcja „Poza zakresem kontraktu”.
 - Mgła wojny na poziomie geografii jest niemożliwa, bo klient zna wszystkie wyspy; tajemnicą pozostaje wyłącznie stan osad.
 - Nowy rodzaj celu floty na komórce morza wymagałby rozszerzenia siatki o trzeci stan komórki, czego celowo nie robimy.
 
@@ -40,6 +40,29 @@ Stałe `31`, `1000003`, `1000033`, `13`, `1274126177` i maska `0x7fffffff` są c
 generowania podhashy dla znaleziska (patrz punkt 4), z konkretnymi wektorami-solami
 `(7, 11)`, `(3, 5)`, `(1, 1)`, `(i + 1, 0)` — to też trzeba przepisać dosłownie.
 
+Wynik `h` jest też przypisywany wprost jako `Island.seed_val` (patrz `WorldGrid.island_at`) —
+to ta sama liczba, której backend musi liczyć dla promienia i znaleziska (punkty 6 i 7), a nie
+osobna, tylko-kliencka wartość. Klient zużywa `seed_val` powtórnie jako ziarno `CoastlineGenerator`
+do narysowania wygiętego konturu wybrzeża — to jedyne miejsce, gdzie kontraktowa wartość `h`
+zasila coś, co samo w sobie kontraktem nie jest (patrz punkt 2 i „Poza zakresem kontraktu” niżej).
+
+**Krytyczne dla implementacji w JavaScript/TypeScript:** wynik pośredni
+`(h ^ (h >> 13)) * 1274126177` sięga rzędu 2,7 × 10^18 — daleko poza bezpieczny zakres liczb
+całkowitych JavaScriptu (`Number.MAX_SAFE_INTEGER` = 2^53 − 1 ≈ 9,007 × 10^15), a operatory
+bitowe JavaScriptu (`&`, `^`, `>>`) i tak działają tylko na 32 bitach. GDScript nie ma tego
+problemu — jego `int` jest 64-bitowy, więc `hash_cell` liczy się w nim dokładnie bez żadnych
+dodatkowych zabiegów. Naiwne przepisanie wzoru na `number` z `| 0`/`>>> 0` na końcu da
+**błędny** wynik: dla `world_seed = 1337`, `cell = (103, 100)` (ten sam przykład co pierwszy
+złoty test w `test/core/world_grid_test.gd`) prawidłowy `hash_cell` (policzony w 64-bitowej
+arytmetyce, tak jak liczy go Godot) to `252586155`, a ten sam wzór przepisany dosłownie na
+`number` w TypeScripcie, z maskowaniem `& 0x7fffffff` na końcu, daje `252586152` — różnica
+bierze się z utraty precyzji już przy samym mnożeniu przez `1274126177`, zanim dojdzie do
+maskowania bitowego. Dla `world_seed = 1337` to jedna komórka; w praktyce zmieniłoby to promień
+i znalezisko praktycznie każdej wyspy w świecie, bo błąd zależy od `(x, y)` w sposób, którego
+nikt by ręcznie nie zauważył. Backend musi liczyć `hash_cell` (i podać wynik do `hash01`) w
+arytmetyce 64-bitowej: w TypeScripcie oznacza to `BigInt` na każdym kroku tej funkcji (`h`,
+mnożenie, XOR, przesunięcie, maskowanie) — nigdy `number` ani obcinanie przez `| 0`/`>>> 0`.
+
 ### 2. `WorldGrid.hash01(h)` — zamiana zhashowanej liczby na `[0, 1)`
 
 ```
@@ -50,7 +73,9 @@ Uwaga terminologiczna: w kliencie istnieje też `CoastlineGenerator._mix_seed01`
 *surowy, jeszcze niezhashowany* seed (miesza bity przez XOR-shift-multiply, dopiero potem robi
 `% 10007`). To inna funkcja o innym kontrakcie, używana tylko do rysowania kształtu wybrzeża —
 nie jest częścią kontraktu geografii i backend nie musi jej odtwarzać. Kontraktem jest wyłącznie
-`WorldGrid.hash01`.
+`WorldGrid.hash01`. (Zobacz „Konsekwencje” wyżej i „Poza zakresem kontraktu” niżej: kontrakt
+obejmuje ISTNIENIE i PROMIEŃ wyspy, nie rendering jej wybrzeża — mimo że oba korzystają z tego
+samego `seed_val`, patrz punkt 1.)
 
 ### 3. Konfiguracja szumu (`FastNoiseLite`) — w całości, łącznie z domyślnymi polami
 
@@ -129,8 +154,18 @@ znalezisko każdej wyspy w każdym świecie** — bez zmiany jednej linijki logi
 akurat nie ma znaczenia — ale `ResourceTypes.ALL` ma i backend musi trzymać identyczną kolejność
 tej listy.
 
-### Poza zakresem kontraktu
+### Poza zakresem kontraktu (geografii)
 
-`CELL_SIZE`, `CHUNK_SIZE`, `world_to_cell`/`cell_to_world`, sposób grupowania w chunki oraz
-`Biome.slots`/`Biome.colors`/`Biome.extraction_buildings` to sprawy renderowania i UI klienta,
-nie geografii — backend nie musi ich znać, żeby wysyłać zgodne z klientem `(worldId, x, y)`.
+`CELL_SIZE`, `CHUNK_SIZE`, `world_to_cell`/`cell_to_world`, sposób grupowania w chunki,
+`Biome.colors` oraz sam układ slotów budynków w `Biome.slots` (rozmieszczenie na okręgu,
+kolejność wizualna) i kształt narysowanego wybrzeża (`CoastlineGenerator`, patrz punkty 1 i 2)
+to sprawy renderowania i UI klienta, nie geografii — backend nie musi ich znać, żeby wysyłać
+zgodne z klientem `(worldId, x, y)`.
+
+**To nie znaczy, że mapowanie biom → dozwolone budynki wydobywcze (`Biome.extraction_buildings`,
+ADR 0002) jest wyłącznie sprawą UI.** Backend musi znać to samo mapowanie, żeby odrzucać próby
+budowy budynku wydobywczego zasobu spoza biomu osady — to osobny, współdzielony kontrakt (reguła
+gry z ADR 0002), niezależny od kontraktu geografii opisanego w tym załączniku. Innymi słowy:
+backend nie musi wiedzieć, GDZIE narysować ikonę slotu na okręgu (to UI), ale musi wiedzieć,
+KTÓRE budynki wolno postawić na wyspie danego biomu (to reguła gry, egzekwowana też po stronie
+serwera).

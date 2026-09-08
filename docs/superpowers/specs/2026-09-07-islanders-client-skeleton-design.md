@@ -232,8 +232,7 @@ poziomy slotów. `build()` czyści dzieci i rysuje warstwy od spodu:
    kolorem biomu + poziom w labelu. Sygnał `slot_tapped(building: Buildings.Type)`.
 
 `Biome.gd`: `enum Type`, tabela `{ land, sand, coast, crater }: Color`,
-`resources(biome) -> Array`, `extraction_buildings(biome) -> Array`,
-`mock_production(biome) -> Dictionary` (tylko dla `MockProvider`).
+`resources(biome) -> Array`, `extraction_buildings(biome) -> Array`.
 
 ## 6. Mapa świata i kamera
 

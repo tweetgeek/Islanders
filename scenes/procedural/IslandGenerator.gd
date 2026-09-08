@@ -156,8 +156,11 @@ func slot_at(local_pos: Vector2) -> int:
 	return -1
 
 
-func contains(local_pos: Vector2) -> bool:
-	return local_pos.length() <= radius * TAP_RADIUS_FACTOR
+## Czy punkt lokalny (środek = środek wyspy) mieści się w promieniu trafienia przy tapnięciu.
+## Statyczna i przyjmuje promień jawnie, żeby wołać ją bez tworzenia instancji generatora
+## (np. z WorldMap._on_tapped dla wysp w chunkach, które mogą być aktualnie niezaładowane).
+static func contains(local_pos: Vector2, island_radius: float) -> bool:
+	return local_pos.length() <= island_radius * TAP_RADIUS_FACTOR
 
 
 static func hexagon(r: float) -> PackedVector2Array:
