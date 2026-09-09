@@ -5,6 +5,8 @@ status: accepted
 
 Mapa świata w grze typu Tribal Wars jest stała, zmienia się tylko stan osad. Zamiast trzymać wyspy jako rekordy z własnym `id` i serwować geometrię przez API, istnienie, kształt, biom i znalezisko każdej wyspy wynikają deterministycznie z `worldSeed` i współrzędnych komórki `(x, y)` przez `FastNoiseLite` i hash. Klient rysuje całą mapę bez requestów, a tożsamością wyspy jest `(worldId, x, y)`; serwer przechowuje tylko osady (stan gracza) pod tym samym kluczem.
 
+**Zmiana implementacji szumu.** Powyższy akapit opisuje decyzję w chwili jej podjęcia; od tego czasu `FastNoiseLite` został usunięty z algorytmu geografii i zastąpiony szumem wartościowym zbudowanym na `hash_cell`, który klient już miał jako część kontraktu (patrz Załącznik, sekcje 2 i 3). Nie dlatego, że `FastNoiseLite` działał źle — działał poprawnie i wyglądał dobrze. Dlatego, że kontrakt, który potrafi pewnie zaimplementować tylko jedna strona, nie jest kontraktem: odtworzenie OpenSimplex2S (kryjącego się pod `TYPE_SIMPLEX_SMOOTH`) w TypeScripcie to setki linii cudzej matematyki, w której każda różnica w kolejności działań daje inny świat, wyglądający całkowicie poprawnie. Szum wartościowy to około trzydziestu linii dodawania, mnożenia i interpolacji na `float`, bez funkcji przestępnych — obie strony liczą je identycznie, bo obie używają IEEE 754 binary64. `CoastlineGenerator` dalej używa `FastNoiseLite` do rysowania wybrzeża — to zostaje bez zmian, bo kształt wybrzeża jest czysto renderingowy i nigdy nie wchodził w ten kontrakt (patrz „Poza zakresem kontraktu” niżej). Zgodność implementacji między klientem a backendem pilnuje teraz `contract/world-parity.json` (patrz `contract/README.md`): zrzut geografii dla kilku ziaren świata, który backend sprawdza komórka po komórce — to on ma wyłapać rozjazd, zanim wyłapie go gracz widzący własną osadę na morzu.
+
 ## Konsekwencje
 
 - Algorytm placementu i promienia wyspy jest częścią kontraktu klient–serwer (patrz Załącznik); zmiana po otwarciu świata to migracja całego świata. Backend NestJS musi mieć identyczną implementację `WorldGrid` (ten sam szum, ten sam hash). Wygląd narysowanego wybrzeża (`CoastlineGenerator`) jest czysto renderingowy i NIE wchodzi w ten kontrakt — patrz Załącznik, sekcja „Poza zakresem kontraktu”.
@@ -77,40 +79,84 @@ nie jest częścią kontraktu geografii i backend nie musi jej odtwarzać. Kontr
 obejmuje ISTNIENIE i PROMIEŃ wyspy, nie rendering jej wybrzeża — mimo że oba korzystają z tego
 samego `seed_val`, patrz punkt 1.)
 
-### 3. Konfiguracja szumu (`FastNoiseLite`) — w całości, łącznie z domyślnymi polami
+`hash01` ma dziś drugiego konsumenta oprócz promienia i znaleziska (punkty 6 i 7): jest cegiełką
+szumu wartościowego z punktu 3 niżej (`_lattice`). To ta sama funkcja, wołana z tymi samymi
+regułami — backend nie implementuje osobnego `hash01` na potrzeby szumu.
 
-Dwa niezależne szumy na `worldSeed`:
+### 3. Szum wartościowy oparty na haszu (zastępuje `FastNoiseLite`)
 
-| pole | szum lądu | szum biomu |
-|---|---|---|
-| `seed` | `world_seed` | `world_seed + 1` |
-| `noise_type` | `TYPE_SIMPLEX_SMOOTH` | `TYPE_SIMPLEX_SMOOTH` |
-| `fractal_octaves` | `2` | `1` |
-| `frequency` | `LAND_FREQUENCY = 0.12` | `BIOME_FREQUENCY = 0.03` |
+Dwie niezależne funkcje `fbm` na `worldSeed`, obie zbudowane wyłącznie na `hash_cell`/`hash01`
+z punktów 1 i 2 — żadnych funkcji przestępnych, żadnej biblioteki szumu:
 
-Pola, których kod nie ustawia, i tak wpływają na wynik, bo `FastNoiseLite` ma je niezerowe
-domyślnie (zmierzone na instancji `FastNoiseLite.new()` w Godot 4.8.dev4):
-`fractal_type = FRACTAL_FBM`, `fractal_lacunarity = 2.0`, `fractal_gain = 0.5`,
-`fractal_weighted_strength = 0.0`, `fractal_ping_pong_strength = 2.0`, `offset = (0, 0, 0)`,
-`domain_warp_enabled = false`. Backend musi je jawnie ustawić na te same wartości — nie może
-polegać na „domyślnych ustawieniach” swojej biblioteki szumu, bo inna biblioteka ma inne domyślne.
-Próbkowanie jest wołane jako `get_noise_2d(cell.x, cell.y)` — na surowych całkowitych
-współrzędnych komórki, bez skalowania przez `CELL_SIZE`.
+```
+lattice(seed, ix, iy) = hash01(hash_cell(seed, ix, iy)) * 2.0 - 1.0     # w [-1, 1)
 
-Jeśli backend nie implementuje identycznego algorytmu OpenSimplex2S (to kryje się pod
-`SIMPLEX_SMOOTH` w Godocie) z tą samą kolejnością oktaw, wyniki się rozjadą mimo identycznych
-parametrów wejściowych — sama zgodność parametrów nie wystarczy, trzeba zgodności implementacji.
+smooth(t) = t * t * (3.0 - 2.0 * t)
+
+value_noise(seed, x, y):
+    ix = floor(x);  iy = floor(y)
+    fx = x - ix;    fy = y - iy
+    u = smooth(fx); v = smooth(fy)
+    n00 = lattice(seed, ix,     iy)
+    n10 = lattice(seed, ix + 1, iy)
+    n01 = lattice(seed, ix,     iy + 1)
+    n11 = lattice(seed, ix + 1, iy + 1)
+    a = n00 + (n10 - n00) * u
+    b = n01 + (n11 - n01) * u
+    return a + (b - a) * v
+
+fbm(seed, x, y, octaves):
+    sum = 0.0;  norm = 0.0;  amp = 1.0;  freq = 1.0
+    for i in 0 .. octaves - 1:
+        sum  = sum + amp * value_noise(seed + i * 1013, x * freq, y * freq)
+        norm = norm + amp
+        amp  = amp * 0.5
+        freq = freq * 2.0
+    return sum / norm
+
+land  = fbm(world_seed,     x * LAND_FREQUENCY,  y * LAND_FREQUENCY,  2)
+biome = fbm(world_seed + 1, x * BIOME_FREQUENCY, y * BIOME_FREQUENCY, 1)
+```
+
+Wołane na surowych całkowitych współrzędnych komórki `(x, y)`, bez skalowania przez `CELL_SIZE` —
+tak jak dawniej `get_noise_2d`. `LAND_FREQUENCY = 0.12` i `BIOME_FREQUENCY = 0.03` przeniesione
+bez zmian.
+
+Wiążące dla obu implementacji:
+
+- `floor` musi być matematyczną podłogą, także dla ujemnych współrzędnych. W TypeScripcie
+  `Math.floor`, nigdy `Math.trunc`, `| 0` ani `parseInt` — te obcinają w stronę zera, co dla
+  ujemnych wejść daje inny wynik niż podłoga.
+- Kolejność działań w `fbm` jest częścią kontraktu: sumowanie w innej kolejności zmienia wynik na
+  ostatnich bitach, a próg lądu (punkt 4) potrafi to wzmocnić do różnicy „ląd albo morze”.
+- Sól oktawy `1013` oraz mnożniki `0.5` (amplituda) i `2.0` (częstotliwość) są kontraktem.
+- Wynik mieści się w przybliżeniu w `[-1, 1]`, ale nie dokładnie — nie polegaj na krańcach zakresu.
+- Wszystkie działania to dodawanie, odejmowanie, mnożenie i dzielenie na `float` (IEEE 754
+  binary64), które GDScript i TypeScript liczą identycznie — bez tego zastrzeżenia dotyczącego
+  `hash_cell` z punktu 1 (BigInt), bo tu nigdzie nie ma arytmetyki całkowitoliczbowej poza samym
+  `hash_cell`.
+
+Algorytm zweryfikowano na prototypie w GDScript i w JavaScripcie z `BigInt`: obie implementacje
+dają identyczne wartości `land` i `biome` do siedemnastu cyfr znaczących, także dla ujemnych
+współrzędnych. `contract/world-parity.json` (patrz `contract/README.md`) jest bieżącym,
+uruchamialnym dowodem tej zgodności — backend ma test, który czyta ten plik i sprawdza swoją
+implementację komórka po komórce, dla siatki co najmniej 200 × 200 i kilku ziaren.
 
 ### 4. Próg lądu (`LAND_THRESHOLD`)
 
 ```
-komórka jest morzem, gdy szum_lądu.get_noise_2d(x, y) <= LAND_THRESHOLD (0.30)
+komórka jest morzem, gdy land <= LAND_THRESHOLD (0.30)
 w przeciwnym razie jest lądem (wyspą)
 ```
 
+`land` liczone jak w punkcie 3. Nowy szum ma inny rozkład niż `FastNoiseLite`, więc próg wymagał
+ponownego sprawdzenia: na próbce 100 × 100 dla trzech ziaren (1, 1337, 99999) `LAND_THRESHOLD =
+0.30` daje gęstość lądu 18,1%, w docelowym przedziale 15–20%, więc wartość progu zostaje bez
+zmian.
+
 ### 5. Pasmowanie biomu (`BIOME_BAND`)
 
-Dla `b = szum_biomu.get_noise_2d(x, y)`:
+Dla `b = biome` liczonego jak w punkcie 3:
 
 ```
 b < -BIOME_BAND (-0.15)  -> TROPICAL

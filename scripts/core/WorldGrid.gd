@@ -11,24 +11,6 @@ const DEPOSIT_CHANCE := 0.3
 const RADIUS_MIN := 60.0
 const RADIUS_MAX := 110.0
 
-static var _noise_cache: Dictionary = {}
-
-
-static func _noises(world_seed: int) -> Array:
-	if not _noise_cache.has(world_seed):
-		var land := FastNoiseLite.new()
-		land.seed = world_seed
-		land.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		land.fractal_octaves = 2
-		land.frequency = LAND_FREQUENCY
-		var biome := FastNoiseLite.new()
-		biome.seed = world_seed + 1
-		biome.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		biome.fractal_octaves = 1
-		biome.frequency = BIOME_FREQUENCY
-		_noise_cache[world_seed] = [land, biome]
-	return _noise_cache[world_seed]
-
 
 ## Deterministyczny, 31-bitowy hash komórki; identyczny algorytm ma mieć backend.
 static func hash_cell(world_seed: int, cell: Vector2i) -> int:
@@ -43,16 +25,59 @@ static func hash01(h: int) -> float:
 	return float(h % 10007) / 10007.0
 
 
+## Wartość siatki w punkcie całkowitym (ix, iy), w [-1, 1). Część kontraktu geografii -
+## patrz sekcja 4.3 api-guidelines.md; backend musi liczyć identycznie na IEEE 754 binary64.
+static func _lattice(seed_value: int, ix: int, iy: int) -> float:
+	return hash01(hash_cell(seed_value, Vector2i(ix, iy))) * 2.0 - 1.0
+
+
+static func _smooth(t: float) -> float:
+	return t * t * (3.0 - 2.0 * t)
+
+
+## Dwuwymiarowy szum wartościowy (bilinearna interpolacja rogów siatki wygładzona `_smooth`).
+## Zastępuje `FastNoiseLite`/OpenSimplex2S - patrz ADR 0001, sekcja "Zmiana implementacji szumu".
+static func _value_noise(seed_value: int, x: float, y: float) -> float:
+	var ix := floori(x)
+	var iy := floori(y)
+	var fx := x - ix
+	var fy := y - iy
+	var u := _smooth(fx)
+	var v := _smooth(fy)
+	var n00 := _lattice(seed_value, ix, iy)
+	var n10 := _lattice(seed_value, ix + 1, iy)
+	var n01 := _lattice(seed_value, ix, iy + 1)
+	var n11 := _lattice(seed_value, ix + 1, iy + 1)
+	var a := n00 + (n10 - n00) * u
+	var b := n01 + (n11 - n01) * u
+	return a + (b - a) * v
+
+
+## Fraktalna suma `_value_noise` przez `octaves` oktaw; sól oktawy `1013` i mnożniki `0.5`/`2.0`
+## amplitudy i częstotliwości są częścią kontraktu (api-guidelines.md sekcja 4.3).
+static func fbm(seed_value: int, x: float, y: float, octaves: int) -> float:
+	var total := 0.0
+	var norm := 0.0
+	var amp := 1.0
+	var freq := 1.0
+	for i in octaves:
+		total += amp * _value_noise(seed_value + i * 1013, x * freq, y * freq)
+		norm += amp
+		amp *= 0.5
+		freq *= 2.0
+	return total / norm
+
+
 ## Wyspa w komórce albo null, gdy komórka jest morzem.
 static func island_at(world_seed: int, cell: Vector2i) -> Island:
-	var noises := _noises(world_seed)
-	if noises[0].get_noise_2d(cell.x, cell.y) <= LAND_THRESHOLD:
+	var land := fbm(world_seed, float(cell.x) * LAND_FREQUENCY, float(cell.y) * LAND_FREQUENCY, 2)
+	if land <= LAND_THRESHOLD:
 		return null
 	var h := hash_cell(world_seed, cell)
 	var island := Island.new()
 	island.coord = cell
 	island.seed_val = h
-	var b: float = noises[1].get_noise_2d(cell.x, cell.y)
+	var b: float = fbm(world_seed + 1, float(cell.x) * BIOME_FREQUENCY, float(cell.y) * BIOME_FREQUENCY, 1)
 	if b < -BIOME_BAND:
 		island.biome = Biome.Type.TROPICAL
 	elif b > BIOME_BAND:

@@ -156,7 +156,7 @@ func _process(_delta: float) -> void:
 			_check(map.camera.position != _pan_start, "przeciągnięcie na ikonie zasobu przesuwa mapę")
 		34:
 			var map := get_node("Main/ViewContainer/WorldMap")
-			map.camera.position = WorldGrid.cell_to_world(Vector2i(103, 100))
+			map.camera.position = WorldGrid.cell_to_world(Vector2i(80, 73))
 			_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		36:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
@@ -179,7 +179,7 @@ func _process(_delta: float) -> void:
 				det != null and det.get_node("UI/BuildingMenu").visible,
 				"tapnięcie w slot otwiera panel budynku"
 			)
-			GameState.inspect(Vector2i(95, 100))
+			GameState.inspect(Vector2i(81, 73))
 		44:
 			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
 			_check(det != null and not det.get_node("Generator").show_slots, "cudza osada bez slotów")
@@ -187,7 +187,7 @@ func _process(_delta: float) -> void:
 				det != null and det.get_node("UI/InfoPanel/Info").text.contains("gracz 9"),
 				"cudza osada pokazuje właściciela"
 			)
-			GameState.inspect(Vector2i(95, 98))
+			GameState.inspect(Vector2i(79, 73))
 		49:
 			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
 			_check(det != null and det.get_node("Generator").show_deposit, "wyspa niczyja pokazuje znalezisko")

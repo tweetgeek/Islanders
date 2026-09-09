@@ -4,8 +4,8 @@ const SEED := 1337
 
 
 func test_island_at_is_deterministic() -> void:
-	var a := WorldGrid.island_at(SEED, Vector2i(103, 100))
-	var b := WorldGrid.island_at(SEED, Vector2i(103, 100))
+	var a := WorldGrid.island_at(SEED, Vector2i(80, 73))
+	var b := WorldGrid.island_at(SEED, Vector2i(80, 73))
 	assert_object(a).is_not_null()
 	assert_int(a.seed_val).is_equal(b.seed_val)
 	assert_int(a.biome).is_equal(b.biome)
@@ -14,16 +14,28 @@ func test_island_at_is_deterministic() -> void:
 
 
 func test_known_cells_for_fixture_seed() -> void:
-	assert_object(WorldGrid.island_at(SEED, Vector2i(100, 100))).is_null()
+	assert_object(WorldGrid.island_at(SEED, Vector2i(77, 68))).is_null()
 	assert_int(
-		WorldGrid.island_at(SEED, Vector2i(103, 100)).biome
+		WorldGrid.island_at(SEED, Vector2i(80, 73)).biome
 	).is_equal(Biome.Type.TROPICAL)
 	assert_int(
-		WorldGrid.island_at(SEED, Vector2i(94, 100)).biome
+		WorldGrid.island_at(SEED, Vector2i(87, 72)).biome
 	).is_equal(Biome.Type.VOLCANIC)
 	assert_int(
-		WorldGrid.island_at(SEED, Vector2i(95, 100)).biome
+		WorldGrid.island_at(SEED, Vector2i(81, 73)).biome
 	).is_equal(Biome.Type.TEMPERATE)
+	assert_int(
+		WorldGrid.island_at(SEED, Vector2i(79, 73)).biome
+	).is_equal(Biome.Type.TROPICAL)
+
+
+## Sprawdza nie tylko to, że komórka jest morzem, ale i DLACZEGO: wartość szumu lądu leży
+## poniżej progu, więc odrzucenie nie jest przypadkiem trafienia w akurat zerowy wynik.
+func test_known_sea_cell_land_value_is_below_threshold() -> void:
+	var land := WorldGrid.fbm(SEED, 77.0 * WorldGrid.LAND_FREQUENCY, 68.0 * WorldGrid.LAND_FREQUENCY, 2)
+	assert_float(land).is_equal_approx(0.268155, 0.000001)
+	assert_float(land).is_less_equal(WorldGrid.LAND_THRESHOLD)
+	assert_object(WorldGrid.island_at(SEED, Vector2i(77, 68))).is_null()
 
 
 func test_density_between_10_and_25_percent() -> void:
@@ -110,27 +122,27 @@ func test_hash_cell_deterministic_and_positive() -> void:
 ## zachowanie bez świadomej decyzji o migracji świata; zmiana tego testu na zielono bez takiej
 ## decyzji oznacza, że właśnie zepsuto kontrakt klient-serwer.
 func test_golden_radius_and_deposit_for_fixture_seed() -> void:
-	var a := WorldGrid.island_at(SEED, Vector2i(103, 100))
+	# Koralowa (osada domowa) - geografia niesie znalezisko niezależnie od tego, że osada
+	# w warstwie GameState je ukrywa (patrz GameState/Settlement).
+	var a := WorldGrid.island_at(SEED, Vector2i(80, 73))
 	assert_int(a.biome).is_equal(Biome.Type.TROPICAL)
-	assert_float(a.radius).is_equal_approx(107.34186069751175, 0.0000001)
-	assert_that(a.deposit).is_equal({"stone": 527.0})
+	assert_float(a.radius).is_equal_approx(61.953632457279902, 0.0000001)
+	assert_that(a.deposit).is_equal({"sulfur": 499.0, "stone": 861.0})
 
-	var b := WorldGrid.island_at(SEED, Vector2i(94, 100))
+	# Popielna (własna osada).
+	var b := WorldGrid.island_at(SEED, Vector2i(87, 72))
 	assert_int(b.biome).is_equal(Biome.Type.VOLCANIC)
-	assert_float(b.radius).is_equal_approx(82.73408613970221, 0.0000001)
+	assert_float(b.radius).is_equal_approx(96.979114619766165, 0.0000001)
 	assert_that(b.deposit).is_equal({})
 
-	var c := WorldGrid.island_at(SEED, Vector2i(95, 100))
+	# Szara Skała (osada cudza).
+	var c := WorldGrid.island_at(SEED, Vector2i(81, 73))
 	assert_int(c.biome).is_equal(Biome.Type.TEMPERATE)
-	assert_float(c.radius).is_equal_approx(65.64604776656341, 0.0000001)
+	assert_float(c.radius).is_equal_approx(87.560707504746674, 0.0000001)
 	assert_that(c.deposit).is_equal({})
 
-	var d := WorldGrid.island_at(SEED, Vector2i(91, 97))
-	assert_int(d.biome).is_equal(Biome.Type.VOLCANIC)
-	assert_float(d.radius).is_equal_approx(79.9510342760068, 0.0000001)
-	assert_that(d.deposit).is_equal({"wood": 815.0, "stone": 598.0})
-
-	var e := WorldGrid.island_at(SEED, Vector2i(2, 25))
-	assert_int(e.biome).is_equal(Biome.Type.TEMPERATE)
-	assert_float(e.radius).is_equal_approx(102.35035475167382, 0.0000001)
-	assert_that(e.deposit).is_equal({"sulfur": 532.0})
+	# Wyspa niczyja ze znaleziskiem - cel wyprawy z fixtures/fleets.json.
+	var d := WorldGrid.island_at(SEED, Vector2i(79, 73))
+	assert_int(d.biome).is_equal(Biome.Type.TROPICAL)
+	assert_float(d.radius).is_equal_approx(90.173878285200360, 0.0000001)
+	assert_that(d.deposit).is_equal({"stone": 831.0, "iron": 778.0})

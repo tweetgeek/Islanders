@@ -9,8 +9,8 @@ const WORLD_MAP_SCRIPT := preload("res://scenes/views/WorldMap.gd")
 
 const WORLD_SEED := 1337
 const WORLD_SIZE := 4000
-## (103, 100) to znany ląd (TROPICAL) dla ziarna 1337 - używany też w test/state/game_state_test.gd.
-const HOME_CELL := Vector2i(103, 100)
+## (80, 73) to znany ląd (TROPICAL) dla ziarna 1337 - używany też w test/state/game_state_test.gd.
+const HOME_CELL := Vector2i(80, 73)
 ## Daleko od krawędzi świata (0..1_024_000), żeby kamera nigdy nie była przycinana przez bounds.
 const START_POS := Vector2(200000.0, 200000.0)
 
