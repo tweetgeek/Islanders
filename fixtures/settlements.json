@@ -1,6 +1,6 @@
 [
   {
-    "world": "w1", "x": 103, "y": 100,
+    "world": "w1", "x": 80, "y": 73,
     "ownerId": 7, "name": "Koralowa",
     "resources": { "wood": 500, "stone": 200, "food": 1000, "iron": 40, "sulfur": 0 },
     "productionPerHour": { "wood": 120, "stone": 0, "food": 200, "iron": 0, "sulfur": 0 },
@@ -9,7 +9,7 @@
     "buildings": { "TOWN_HALL": 1, "BARRACKS": 0, "SHIPYARD": 1, "WAREHOUSE": 1, "SAWMILL": 2, "FARM": 1 }
   },
   {
-    "world": "w1", "x": 94, "y": 100,
+    "world": "w1", "x": 87, "y": 72,
     "ownerId": 7, "name": "Popielna",
     "resources": { "wood": 120, "stone": 60, "food": 300, "iron": 900, "sulfur": 450 },
     "productionPerHour": { "wood": 0, "stone": 0, "food": 0, "iron": 60, "sulfur": 40 },
@@ -18,7 +18,7 @@
     "buildings": { "TOWN_HALL": 1, "WAREHOUSE": 1, "IRON_MINE": 2, "SULFUR_PIT": 1 }
   },
   {
-    "world": "w1", "x": 95, "y": 100,
+    "world": "w1", "x": 81, "y": 73,
     "ownerId": 9, "name": "Szara Skała"
   }
 ]

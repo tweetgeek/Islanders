@@ -1,21 +1,21 @@
 [
   {
     "id": "f1", "world": "w1", "ownerId": 7, "mission": "EXPEDITION",
-    "from": { "x": 103, "y": 100 }, "to": { "x": 94, "y": 99 },
+    "from": { "x": 80, "y": 73 }, "to": { "x": 79, "y": 73 },
     "ships": { "SLOOP": 6 },
     "cargo": { "units": {}, "resources": {} },
     "departOffsetMin": -10, "arriveOffsetMin": 30
   },
   {
     "id": "f2", "world": "w1", "ownerId": 7, "mission": "RETURN",
-    "from": { "x": 95, "y": 98 }, "to": { "x": 94, "y": 100 },
+    "from": { "x": 79, "y": 73 }, "to": { "x": 87, "y": 72 },
     "ships": { "SLOOP": 4, "GALLEON": 1 },
     "cargo": { "units": {}, "resources": { "sulfur": 250, "wood": 120 } },
     "departOffsetMin": -5, "arriveOffsetMin": 15
   },
   {
     "id": "f3", "world": "w1", "ownerId": 9, "mission": "ATTACK",
-    "from": { "x": 95, "y": 100 }, "to": { "x": 103, "y": 100 },
+    "from": { "x": 81, "y": 73 }, "to": { "x": 80, "y": 73 },
     "departOffsetMin": -20, "arriveOffsetMin": 120
   }
 ]

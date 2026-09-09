@@ -7,15 +7,15 @@ extends RefCounted
 
 const WORLD_SEED := 1337
 ## Osada domowa gracza (Koralowa, TROPICAL).
-const HOME := Vector2i(103, 100)
+const HOME := Vector2i(80, 73)
 ## Druga własna osada (Popielna, VOLCANIC).
-const OWN_SECOND := Vector2i(94, 100)
+const OWN_SECOND := Vector2i(87, 72)
 ## Cudza osada (Szara Skała, gracz 9).
-const FOREIGN := Vector2i(95, 100)
+const FOREIGN := Vector2i(81, 73)
 ## Wyspa niczyja ze znaleziskiem.
-const DEPOSIT := Vector2i(95, 98)
+const DEPOSIT := Vector2i(79, 73)
 ## Komórka morza.
-const SEA := Vector2i(100, 100)
+const SEA := Vector2i(77, 68)
 
 
 ## Słownik world dla apply_world w testach.
