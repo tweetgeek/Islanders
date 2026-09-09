@@ -2,7 +2,10 @@ extends Node2D
 
 ## Siatka komórek w widocznym prostokącie; WorldMap ustawia visible_rect co klatkę.
 
-const LINE_COLOR := Color(1.0, 1.0, 1.0, 0.06)
+## Siatka idzie za kolorem morza: SEA przyciemnione o 18% daje dokładnie to samo, co dawał
+## czarny obrys w 18% krycia położony na SEA, ale przestrojenie morza pociągnie ją za sobą.
+## (const nie liczy wywołań metod, stąd static var.)
+static var LINE_COLOR := MedievalTheme.SEA.darkened(0.18)
 
 var visible_rect := Rect2()
 

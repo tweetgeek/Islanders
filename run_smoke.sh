@@ -1,5 +1,5 @@
 #!/bin/sh
-# Headless smoke test scen: ładuje Main przez tools/Smoke.tscn i sprawdza przepływ mapa -> detal -> mapa.
+# Headless smoke test scen: ładuje Main przez tools/Smoke.tscn i sprawdza przepływ osada -> mapa -> arkusze -> osada.
 GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 cd "$(dirname "$0")"
 tmp="$(mktemp)"

@@ -11,7 +11,7 @@ Odrębna instancja gry z własnym seedem, granicami mapy, wiatrem i rundą. Wysp
 _Avoid_: server, realm, shard, map, round
 
 **Round** (runda):
-Okres życia świata od otwarcia do spełnienia warunku zwycięstwa. Świat przechodzi przez statusy `OPEN`, `CLOSED`, `ENDED`; konto gracza trwa dłużej niż jego osady na zakończonym świecie.
+Okres życia świata od otwarcia do spełnienia warunku zwycięstwa. Świat `OPEN` przyjmuje nowych graczy, `CLOSED` już nie, ale gra trwa, a `ENDED` można tylko oglądać; konto gracza trwa dłużej niż jego osady na zakończonym świecie.
 _Avoid_: season, era, game, match
 
 **Cell** (komórka):
@@ -63,14 +63,22 @@ Miejsca zajęte przez statki i jednostki należące do osady (w garnizonie i we 
 _Avoid_: citizens, people, workers, pop resource
 
 **Home Settlement** (osada domowa):
-Pierwsza osada gracza, założona przy rejestracji. Domyślna osada aktywna po uruchomieniu gry.
+Osada profilu, od której gra zaczyna się po uruchomieniu. Zakładana przez serwer przy dołączeniu do świata; po jej utracie serwer wskazuje najstarszą pozostałą osadę, a profil bez osad nie ma osady domowej.
 _Avoid_: capital, main base, starting island
 
 ### Perspektywa gracza
 
 **Player** (gracz):
-Konto uczestnika gry. Posiada osady, garnizony i floty; ma dokładnie jedną osadę domową.
+Konto uczestnika gry, trwające ponad światami. Na każdym świecie, do którego dołączył, ma dokładnie jeden profil.
 _Avoid_: user, account, owner
+
+**Profile** (profil):
+Obecność gracza na jednym świecie: data dołączenia i osada domowa. Osady, garnizony i floty należą do gracza w ramach jego profilu na danym świecie.
+_Avoid_: world player, membership, member, session
+
+**Nickname** (pseudonim):
+Publiczna, unikalna nazwa gracza, widoczna dla wszystkich jako właściciel osady. Jedyna informacja o koncie, jaką widzą inni gracze.
+_Avoid_: username, display name, login, handle
 
 **Active Settlement** (osada aktywna):
 Osada gracza, w kontekście której działa interfejs: jej zasoby widać w HUD i z niej wysyła się floty. Zawsze należy do gracza.
@@ -85,7 +93,7 @@ To, co każdy gracz widzi o każdej wyspie: geografię, biom, znalezisko, a dla 
 _Avoid_: visible info, fog of war, intel
 
 **Incoming Fleet** (nadchodząca flota):
-Cudza flota, której celem jest osada gracza. Jedyny przypadek, w którym gracz widzi cudzą flotę w drodze.
+Cudza flota, której celem jest osada gracza. Jedyny przypadek, w którym gracz widzi cudzą flotę w drodze: jej właściciela, misję, trasę i czasy wypłynięcia i przybycia, nigdy statków ani ładunku.
 _Avoid_: attack warning, threat, enemy movement
 
 ### Floty

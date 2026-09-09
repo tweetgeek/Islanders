@@ -5,6 +5,22 @@ extends RefCounted
 const SHIP_SPEED := {"SLOOP": 8.0, "GALLEON": 4.0}
 const MISSIONS: Array[String] = ["COLONIZE", "ATTACK", "TRANSPORT", "EXPEDITION", "RETURN"]
 
+const MISSION_LABELS := {
+	"COLONIZE": "Kolonizacja",
+	"ATTACK": "Atak",
+	"TRANSPORT": "Transport",
+	"EXPEDITION": "Wyprawa",
+	"RETURN": "Powrót",
+}
+
+const MISSION_ICONS := {
+	"COLONIZE": &"colonize",
+	"ATTACK": &"raid",
+	"TRANSPORT": &"trade",
+	"EXPEDITION": &"scout",
+	"RETURN": &"return",
+}
+
 var id: String = ""
 var world_id: String = ""
 var owner_id: int = 0

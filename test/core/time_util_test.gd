@@ -37,3 +37,21 @@ func test_set_server_time_shifts_now() -> void:
 	TimeUtil.set_server_time(before + 3600.0)
 	assert_float(TimeUtil.now()).is_greater(before + 3599.0)
 	TimeUtil.server_time_offset = 0.0
+
+
+func test_format_thousands() -> void:
+	var sp := TimeUtil.THIN_SPACE
+	assert_str(TimeUtil.format_thousands(0.0)).is_equal("0")
+	assert_str(TimeUtil.format_thousands(999.9)).is_equal("999")
+	assert_str(TimeUtil.format_thousands(1000.0)).is_equal("1" + sp + "000")
+	assert_str(TimeUtil.format_thousands(12480.0)).is_equal("12" + sp + "480")
+	assert_str(TimeUtil.format_thousands(9999999.0)).is_equal("9" + sp + "999" + sp + "999")
+	assert_str(TimeUtil.format_thousands(10000000.0)).is_equal("10.0M")
+	assert_str(TimeUtil.format_thousands(-1500.0)).is_equal("-1" + sp + "500")
+
+
+func test_format_eta() -> void:
+	assert_str(TimeUtil.format_eta(0.0)).is_equal("00:00")
+	assert_str(TimeUtil.format_eta(1781.0)).is_equal("29:41")
+	assert_str(TimeUtil.format_eta(3600.0)).is_equal("1:00:00")
+	assert_str(TimeUtil.format_eta(7325.0)).is_equal("2:02:05")

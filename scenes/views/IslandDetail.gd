@@ -1,73 +1,125 @@
 extends Node2D
 
-## Trzy tryby wg stanu oglądanej wyspy: własna osada (sloty), cudza osada (dane publiczne),
-## wyspa niczyja (znalezisko).
+## Dom gracza: osada aktywna z plakietkami slotów. Cudze i niczyje wyspy obsługuje InspectSheet
+## nad mapą, nie ten widok. Tap w slot otwiera BuildingSheet przez grupę "sheets".
 
 const DETAIL_RADIUS := 400.0
+## Wysokość przycisku docku plus margines (w px projektu), żeby wyspa nie chowała się pod nim.
+const DOCK_CLEARANCE := 46.0 + 24.0
+const HINT_MARGIN := 10.0
+const HINT_TEXT := "Dotknij slotu, żeby otworzyć budynek"
+const NO_SETTLEMENT_TEXT := "Brak osady"
 
 @onready var generator: IslandGenerator = $Generator
-@onready var back_button: Button = $UI/BackButton
-@onready var info: Label = $UI/InfoPanel/Info
-@onready var building_menu: BuildingMenu = $UI/BuildingMenu
+@onready var camera: Camera2D = $Camera
+@onready var hint_panel: PanelContainer = $UI/HintPanel
+@onready var hint_label: Label = $UI/HintPanel/Hint
 
 var _settlement: Settlement = null
+var _pressed_slot: int = -1
+## Indeks dotyku, który trzyma wciśnięty slot. Widok osady obsługuje wyłącznie tapnięcie,
+## więc drugi palec jest ignorowany, dopóki pierwszy nie puści - inaczej nadpisałby _pressed_slot
+## i zostawił poprzednią plakietkę wciśniętą na zawsze (MapCamera rozwiązuje to tak samo).
+var _pressed_index: int = -1
+var _hint_dismissed := false
 
 
 func _ready() -> void:
-	back_button.pressed.connect(SceneManager.show_world_map)
-	building_menu.upgrade_requested.connect(_on_upgrade_requested)
-	GameState.inspected_island_changed.connect(_show)
+	GameState.active_settlement_changed.connect(_refresh)
 	GameState.settlement_updated.connect(_on_settlement_updated)
-	_show(GameState.inspected_coord)
+	get_viewport().size_changed.connect(_layout)
+	var hud := _hud()
+	if hud != null:
+		hud.bar_height_changed.connect(_layout)
+	_refresh()
+	_layout()
 
 
-func _show(coord: Vector2i) -> void:
-	building_menu.hide()
-	var island := GameState.island_at(coord)
-	if island == null:
-		info.text = "Morze"
+func _refresh() -> void:
+	_settlement = GameState.active_settlement
+	_pressed_slot = -1
+	_pressed_index = -1
+	if _settlement == null:
+		generator.clear()
+		hint_label.text = NO_SETTLEMENT_TEXT
+		hint_panel.show()
 		return
-	_settlement = GameState.settlement_at(coord)
-	generator.seed_val = island.seed_val
-	generator.biome = island.biome
+	var island := GameState.island_at(_settlement.coord)
+	generator.seed_val = island.seed_val if island != null else hash(_settlement.coord)
+	generator.biome = _settlement.biome
 	generator.radius = DETAIL_RADIUS
-	generator.deposit = island.deposit
-	generator.show_deposit = _settlement == null
-	generator.show_slots = _settlement != null and _settlement.is_own
-	generator.settlement = _settlement if generator.show_slots else null
+	generator.show_deposit = false
+	generator.show_slots = true
+	generator.settlement = _settlement
 	generator.build()
-	info.text = _describe(island, _settlement)
-
-
-func _describe(island: Island, s: Settlement) -> String:
-	var where := "(%d, %d) · %s" % [island.coord.x, island.coord.y, Biome.key(island.biome)]
-	if s == null:
-		if island.has_deposit():
-			var parts: Array[String] = []
-			for k in island.deposit:
-				parts.append("%s %d" % [ResourceTypes.LABELS[k], int(island.deposit[k])])
-			return "Wyspa niczyja %s\nZnalezisko: %s" % [where, ", ".join(parts)]
-		return "Wyspa niczyja %s\nBrak znaleziska" % where
-	if s.is_own:
-		return "%s %s\nLudność %d / %d · Magazyn %d" % [
-			s.name, where, s.population, s.population_max, int(s.capacity)
-		]
-	return "%s %s\nWłaściciel: gracz %d" % [s.name, where, s.owner_id]
+	hint_label.text = HINT_TEXT
+	hint_panel.visible = not _hint_dismissed
 
 
 func _on_settlement_updated(coord: Vector2i) -> void:
-	if coord == GameState.inspected_coord:
-		_show(coord)
+	if _settlement != null and coord == _settlement.coord:
+		_refresh()
+
+
+## Wyspa w środku obszaru między dołem paska HUD a górą docku.
+func _layout() -> void:
+	var vis := get_viewport().get_visible_rect().size
+	var top := _hud_bar_height()
+	var bottom := vis.y - SafeArea.bottom_inset(get_viewport()) - MedievalTheme.px(DOCK_CLEARANCE)
+	var mid := (top + bottom) / 2.0
+	camera.position = Vector2(0.0, vis.y / 2.0 - mid)
+	hint_panel.offset_left = MedievalTheme.px(HINT_MARGIN)
+	hint_panel.offset_bottom = -(vis.y - bottom)
+
+
+func _hud() -> Node:
+	return get_tree().get_first_node_in_group("hud")
+
+
+func _hud_bar_height() -> float:
+	var hud := _hud()
+	return hud.bar_height() if hud != null else 0.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventScreenTouch) or event.pressed or not generator.show_slots:
+	if _settlement == null or not generator.show_slots:
 		return
-	var world_pos: Vector2 = get_canvas_transform().affine_inverse() * event.position
-	var slot := generator.slot_at(generator.to_local(world_pos))
-	if slot >= 0:
-		building_menu.open(slot, _settlement.level(slot))
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			# Gest już należy do innego palca: ignorujemy, żeby nie nadpisać _pressed_slot.
+			if _pressed_index != -1:
+				return
+			var slot := _slot_under(event.position)
+			_pressed_index = event.index
+			_pressed_slot = slot
+			if slot >= 0:
+				generator.set_pressed(slot, true)
+		else:
+			if event.index != _pressed_index:
+				return
+			var slot := _slot_under(event.position)
+			if _pressed_slot >= 0:
+				generator.set_pressed(_pressed_slot, false)
+			if slot >= 0 and slot == _pressed_slot:
+				_open_building(slot)
+			_pressed_slot = -1
+			_pressed_index = -1
+	elif event is InputEventScreenDrag and event.index == _pressed_index and _pressed_slot >= 0:
+		if _slot_under(event.position) != _pressed_slot:
+			generator.set_pressed(_pressed_slot, false)
+			_pressed_slot = -1
 
 
-func _on_upgrade_requested(building: int) -> void:
-	print("upgrade_requested: %s w %s" % [Buildings.key(building), Coord.key(GameState.inspected_coord)])
+func _slot_under(screen_pos: Vector2) -> int:
+	var world_pos: Vector2 = get_canvas_transform().affine_inverse() * screen_pos
+	return generator.slot_at(generator.to_local(world_pos))
+
+
+func _open_building(slot: int) -> void:
+	var sheets := get_tree().get_first_node_in_group("sheets")
+	if sheets == null:
+		push_warning("IslandDetail: brak węzła w grupie sheets")
+		return
+	if sheets.open_building(_settlement, slot):
+		_hint_dismissed = true
+		hint_panel.hide()

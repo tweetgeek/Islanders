@@ -58,10 +58,39 @@ func test_rebuild_clears_previous_children() -> void:
 	assert_int(gen.get_child_count()).is_equal(before)
 
 
-func test_settlement_levels_reach_labels() -> void:
+func test_settlement_levels_reach_plaques() -> void:
 	var gen := _generator(Biome.Type.TROPICAL, true)
 	var s := Settlement.from_json({"x": 1, "y": 1, "resources": {}, "buildings": {"SAWMILL": 3}}, Biome.Type.TROPICAL)
 	gen.settlement = s
 	gen.build()
-	var label: Label = gen.get_node("Slot_SAWMILL").get_child(2)
-	assert_str(label.text).is_equal("Tartak\n3")
+	var plaque: SlotPlaque = gen.get_node("Slot_SAWMILL")
+	assert_int(plaque.level).is_equal(3)
+	assert_str((plaque.get_node("Level") as Label).text).is_equal("LV 3")
+	assert_int((gen.get_node("Slot_FARM") as SlotPlaque).level).is_equal(0)
+
+
+func test_slot_at_uses_plaque_rectangle_at_detail_radius() -> void:
+	var gen := _generator(Biome.Type.TROPICAL, true)
+	gen.radius = 400.0
+	gen.build()
+	assert_int(gen.slot_at(Vector2.ZERO)).is_equal(Buildings.Type.TOWN_HALL)
+	assert_int(gen.slot_at(Vector2(SlotPlaque.WIDTH / 2.0 - 1.0, 0.0))).is_equal(Buildings.Type.TOWN_HALL)
+	# między plakietką ratusza (do 77 px) a pierścieniem slotów (od 180 - 80 = 100 px) jest pusto
+	assert_int(gen.slot_at(Vector2(0.0, 90.0))).is_equal(-1)
+	for t in gen._slot_positions:
+		assert_int(gen.slot_at(gen._slot_positions[t])).is_equal(t)
+
+
+func test_set_pressed_reaches_plaque() -> void:
+	var gen := _generator(Biome.Type.TROPICAL, true)
+	gen.set_pressed(Buildings.Type.TOWN_HALL, true)
+	assert_bool((gen.get_node("Slot_TOWN_HALL") as SlotPlaque).pressed).is_true()
+	gen.set_pressed(Buildings.Type.TOWN_HALL, false)
+	assert_bool((gen.get_node("Slot_TOWN_HALL") as SlotPlaque).pressed).is_false()
+
+
+func test_clear_removes_everything() -> void:
+	var gen := _generator(Biome.Type.TROPICAL, true)
+	gen.clear()
+	assert_int(gen.get_child_count()).is_equal(0)
+	assert_int(gen.slot_at(Vector2.ZERO)).is_equal(-1)

@@ -51,3 +51,30 @@ static func format_countdown(seconds: float) -> String:
 	var s := maxi(int(seconds), 0)
 	@warning_ignore("integer_division")
 	return "%02d:%02d" % [s / 60, s % 60]
+
+const THIN_SPACE := " "
+
+
+## 12480 -> "12 480" (wąska spacja), od 10 000 000 -> "10.0M", ujemne z minusem.
+static func format_thousands(value: float) -> String:
+	var v := floorf(value)
+	if absf(v) >= 10000000.0:
+		return "%.1fM" % (v / 1000000.0)
+	var digits := str(int(absf(v)))
+	var out := ""
+	var count := 0
+	for i in range(digits.length() - 1, -1, -1):
+		out = digits[i] + out
+		count += 1
+		if count % 3 == 0 and i > 0:
+			out = THIN_SPACE + out
+	return ("-" if v < 0.0 else "") + out
+
+
+## "mm:ss", a od godziny "h:mm:ss".
+static func format_eta(seconds: float) -> String:
+	var s := maxi(int(seconds), 0)
+	if s < 3600:
+		return format_countdown(seconds)
+	@warning_ignore("integer_division")
+	return "%d:%02d:%02d" % [s / 3600, (s / 60) % 60, s % 60]
