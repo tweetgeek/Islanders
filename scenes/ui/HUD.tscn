@@ -42,6 +42,7 @@ mouse_filter = 2
 
 [node name="SettlementName" type="Label" parent="TopBar/Pad/BarRows/ProfileRow/Identity/NameRow"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "-"
 clip_text = true
 theme_type_variation = &"Title"

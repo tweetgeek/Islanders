@@ -67,3 +67,45 @@ func test_is_in_hud_group_and_reports_height() -> void:
 	assert_bool(hud.is_in_group("hud")).is_true()
 	await await_idle_frame()
 	assert_float(hud.bar_height()).is_greater(0.0)
+
+
+## Szerokość, jakiej etykieta potrzebuje, żeby pokazać swój własny tekst w swoim własnym foncie.
+func _needed_width(label: Label) -> float:
+	var font := label.get_theme_font("font")
+	var font_size := label.get_theme_font_size("font_size")
+	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+
+
+func _labels_with_text(node: Node) -> Array:
+	var out: Array = []
+	for child in node.get_children():
+		if child is Label and not (child as Label).text.is_empty():
+			out.append(child)
+		out.append_array(_labels_with_text(child))
+	return out
+
+
+## Etykieta z clip_text ma zerowy rozmiar minimalny, więc w kontenerze poziomym bez flagi
+## rozciągania dostaje jeden piksel i nazwa osady znika z ekranu. Asercja na .text tego nie
+## widzi - ta mierzy wyrenderowaną szerokość względem szerokości własnego tekstu.
+func test_settlement_name_is_wide_enough_to_render_its_text() -> void:
+	var hud := _hud()
+	await await_idle_frame()
+	await await_idle_frame()
+	var needed := _needed_width(hud.settlement_name)
+	assert_float(needed).is_greater(0.0)
+	assert_float(hud.settlement_name.size.x).is_greater_equal(needed)
+
+
+## Siatka na całą rodzinę zapadnięć układu: przy tych danych każda etykieta paska mieści się
+## w całości, więc żadna nie może być węższa niż jej tekst.
+func test_no_hud_label_is_narrower_than_its_text() -> void:
+	var hud := _hud()
+	await await_idle_frame()
+	await await_idle_frame()
+	for label: Label in _labels_with_text(hud):
+		assert_float(label.size.x) \
+			.override_failure_message("etykieta %s ma tekst %s i szerokość %.1f, potrzebuje %.1f" % [
+				label.name, label.text, label.size.x, _needed_width(label)
+			]) \
+			.is_greater_equal(_needed_width(label))
