@@ -9,8 +9,6 @@ extends CanvasLayer
 ## ResourceGrid (przesortowanie kontenera jest odroczone), więc potrzebują tego sygnału.
 signal bar_height_changed
 
-## Przyciemnienie karty zasobu, którego osada nie produkuje (45% krycia).
-const DIMMED := 0.45
 const PAD := 12.0
 const ICON := 24.0
 
@@ -125,7 +123,7 @@ func _on_active_changed() -> void:
 		for r in ResourceTypes.ALL:
 			_amounts[r].text = "0"
 			_rates[r].text = ""
-			cards[r].modulate.a = 1.0
+			_apply_card_state(r, true)
 		return
 	settlement_name.text = _settlement.name
 	biome_badge.text = Biome.key(_settlement.biome)
@@ -134,7 +132,25 @@ func _on_active_changed() -> void:
 	for r in ResourceTypes.ALL:
 		var produces := _settlement.produces(r)
 		_rates[r].text = "+%d/h" % int(_settlement.production_per_hour[r]) if produces else ""
-		cards[r].modulate.a = 1.0 if produces else DIMMED
+		_apply_card_state(r, produces)
+
+
+## Stan „nie produkuję” niosą paleta i treść, nie przezroczystość: modulate mnożyłby alfę także
+## liczby i ikony, a półprzezroczysty pergamin na dębie wychodził błotem.
+func _apply_card_state(r: String, produces: bool) -> void:
+	var face := MedievalTheme.PARCHMENT if produces else MedievalTheme.VELLUM
+	var card: PanelContainer = cards[r]
+	# Najpierw zdejmujemy własne nadpisanie, żeby duplikować styl z motywu, a nie poprzedni stan.
+	card.remove_theme_stylebox_override("panel")
+	var base := card.get_theme_stylebox("panel")
+	if base is StyleBoxFlat:
+		var sb: StyleBoxFlat = base.duplicate()
+		sb.bg_color = face
+		card.add_theme_stylebox_override("panel", sb)
+	var icon: Icon = _icons[r]
+	icon.color = ResourceTypes.COLORS[r] if produces else MedievalTheme.INK_SOFT
+	icon.knockout = face
+	_amounts[r].add_theme_color_override("font_color", MedievalTheme.INK if produces else MedievalTheme.INK_SOFT)
 
 
 func _on_settlement_updated(coord: Vector2i) -> void:

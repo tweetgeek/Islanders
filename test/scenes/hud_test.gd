@@ -43,9 +43,39 @@ func test_cards_show_amounts_and_rates() -> void:
 	assert_str(hud.amount_of("wood").text).is_equal("12" + TimeUtil.THIN_SPACE + "480")
 	assert_str(hud.rate_of("wood").text).is_equal("+120/h")
 	assert_str(hud.rate_of("stone").text).is_equal("")
-	# Color.a jest float32, więc zapis i odczyt 0.45 różni się o 1 ULP - stąd tolerancja.
-	assert_float(hud.cards["stone"].modulate.a).is_equal_approx(hud.DIMMED, 0.001)
-	assert_float(hud.cards["wood"].modulate.a).is_equal(1.0)
+
+
+func _face(hud: CanvasLayer, r: String) -> Color:
+	return (hud.cards[r].get_theme_stylebox("panel") as StyleBoxFlat).bg_color
+
+
+func test_idle_resource_differs_by_palette_not_by_alpha() -> void:
+	var hud := _hud()
+	assert_that(_face(hud, "wood")).is_equal(MedievalTheme.PARCHMENT)
+	assert_that(_face(hud, "stone")).is_equal(MedievalTheme.VELLUM)
+	assert_that(hud.icon_of("wood").color).is_equal(ResourceTypes.COLORS["wood"])
+	assert_that(hud.icon_of("stone").color).is_equal(MedievalTheme.INK_SOFT)
+	assert_that(hud.icon_of("stone").knockout).is_equal(MedievalTheme.VELLUM)
+	assert_that(hud.amount_of("wood").get_theme_color("font_color")).is_equal(MedievalTheme.INK)
+	assert_that(hud.amount_of("stone").get_theme_color("font_color")).is_equal(MedievalTheme.INK_SOFT)
+	for r in ResourceTypes.ALL:
+		assert_float(hud.cards[r].modulate.a).override_failure_message("karta %s przyciemniona" % r).is_equal(1.0)
+
+
+## Stan karty nie może się „przykleić”: przełączenie na osadę z innym biomem odwraca go w obie strony.
+func test_card_state_follows_the_active_settlement() -> void:
+	GameState.apply_settlements([{
+		"x": FixtureCells.OWN_SECOND.x, "y": FixtureCells.OWN_SECOND.y, "ownerId": 7, "name": "Popielna",
+		"resources": {"iron": 900}, "productionPerHour": {"iron": 60, "sulfur": 40},
+	}])
+	var hud := _hud()
+	assert_that(_face(hud, "iron")).is_equal(MedievalTheme.VELLUM)
+	GameState.set_active_settlement(FixtureCells.OWN_SECOND)
+	assert_that(_face(hud, "iron")).is_equal(MedievalTheme.PARCHMENT)
+	assert_that(_face(hud, "wood")).is_equal(MedievalTheme.VELLUM)
+	assert_that(hud.icon_of("wood").color).is_equal(MedievalTheme.INK_SOFT)
+	assert_str(hud.rate_of("iron").text).is_equal("+60/h")
+	assert_str(hud.rate_of("wood").text).is_equal("")
 
 
 func test_no_settlement_shows_dashes() -> void:
@@ -54,6 +84,7 @@ func test_no_settlement_shows_dashes() -> void:
 	assert_str(hud.settlement_name.text).is_equal("-")
 	assert_str(hud.biome_badge.text).is_equal("")
 	assert_str(hud.amount_of("wood").text).is_equal("0")
+	assert_that(_face(hud, "stone")).is_equal(MedievalTheme.PARCHMENT)
 
 
 func test_is_in_hud_group_and_reports_height() -> void:
