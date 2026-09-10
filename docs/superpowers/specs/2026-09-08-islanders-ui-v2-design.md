@@ -451,7 +451,7 @@ InspectSheet (PanelContainer, Sheet)                            InspectSheet.gd
     ├── Grabber
     ├── Header (ModalHeader): BiomeIcon (Icon pierwszego zasobu biomu, CREAM) · Name (Title) · BiomeBadge (Badge) · CloseButton
     ├── Subtitle (Caption): "(14, 9) · <ownerName>"  |  "(14, 9) · wyspa niczyja"  |  "(14, 9) · twoja osada"
-    ├── PublicLabel (Label): "Dane publiczne: nazwa i właściciel."          (cudza osada)
+    ├── PublicLabel (Label): "Dane publiczne: nazwa i pseudonim właściciela."          (cudza osada)
     ├── DepositHeader (SectionHeader, "ZNALEZISKO") + DepositRow (HBox chipów Chip: Icon + ilość)  (niczyja z deposit)
     ├── EmptyLabel (Label, "Brak znaleziska.")                                 (niczyja bez deposit)
     └── ActionButton (Button, Primary, "PRZEJDŹ DO OSADY" / "WRÓĆ DO OSADY")   (własna osada)
