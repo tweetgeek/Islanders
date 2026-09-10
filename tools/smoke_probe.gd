@@ -136,6 +136,13 @@ func _settled() -> bool:
 	return not _sheets().visible
 
 
+## Prawda, gdy arkusz jest otwarty i skończył wjeżdżać. Tapnięcie przycisku w arkuszu w trakcie
+## animacji trafiałoby w miejsce, z którego przycisk właśnie odjeżdża.
+func _opened() -> bool:
+	var sheets := _sheets()
+	return sheets.is_open() and (sheets._tween == null or not sheets._tween.is_running())
+
+
 func _check(ok: bool, what: String) -> void:
 	print("%s %s" % ["OK  " if ok else "FAIL", what])
 	if not ok:
@@ -263,7 +270,7 @@ func _process(_delta: float) -> void:
 			_check(sheets.is_open() and sheets.inspect_sheet.deposit_header.visible, "wyspa niczyja pokazuje znalezisko")
 			sheets.close()
 			_phase = 5   # sheets.close() woła ten sam tween co zamknięcie przez backdrop - znów czekamy
-	# --- Tap własnej osady wraca do widoku osady. ---
+	# --- Tap własnej, aktywnej osady tylko ją ogląda; wejście to jawna akcja w arkuszu. ---
 	elif _phase == 5 and _settled():
 		_gate = _frame
 		_phase = 6
@@ -273,8 +280,21 @@ func _process(_delta: float) -> void:
 		if _frame == _gate + 2:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		elif _frame == _gate + 5:
-			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "tap własnej osady wraca do widoku osady")
+			var sheets := _sheets()
+			_check(sheets.is_open() and sheets.current_sheet() == sheets.inspect_sheet, "tap własnej osady otwiera arkusz")
+			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "tap własnej osady zostawia mapę")
+			_check(GameState.active_settlement.name == "Koralowa", "tap nie zmienia osady aktywnej")
+			_check(sheets.inspect_sheet.action_button.text == InspectSheet.RETURN_TEXT, "arkusz aktywnej osady proponuje powrót")
+			_phase = 7   # przycisk tapiemy dopiero, gdy arkusz skończy wjeżdżać (patrz _opened())
+	elif _phase == 7 and _opened():
+		_gate = _frame
+		_phase = 8
+		_tap_control(_sheets().inspect_sheet.action_button)
+	elif _phase == 8:
+		if _frame == _gate + 5:
+			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "WRÓĆ DO OSADY przełącza do widoku osady")
 			_check(not _sheets().is_open(), "zmiana widoku zamyka arkusze")
+			_check(GameState.active_settlement.name == "Koralowa", "powrót nie zmienia osady aktywnej")
 		# --- Dock: floty jako arkusz, tap w kartę przenosi na mapę przy flocie. Widoki są tu
 		# zmieniane przez SceneManager.show_world_map_at(), które od razu (bez animacji) zamyka
 		# Sheets przez _hide_now() na sygnale view_changed - stąd od tego miejsca do końca testu

@@ -2,12 +2,25 @@ extends GdUnitTestSuite
 
 const SHEETS := preload("res://scenes/ui/Sheets.tscn")
 
+var _container: Node = null
+
 
 func before_test() -> void:
 	GameState.reset()
+	_container = Node.new()
+	add_child(_container)
+	SceneManager.register_container(_container)
 
 
 func after_test() -> void:
+	# Najpierw zrywamy referencje autoloadu, potem zwalniamy węzły.
+	SceneManager._current = null
+	SceneManager.current_view = ""
+	SceneManager.register_container(null)
+	SceneManager.map_camera_state.clear()
+	if is_instance_valid(_container):
+		_container.queue_free()
+	_container = null
 	GameState.reset()
 
 
@@ -142,3 +155,39 @@ func test_sheet_margins_and_body_separation_are_gaps() -> void:
 	assert_int(margin.get_theme_constant("margin_left")).is_equal(MedievalTheme.gap(SheetStyle.MARGIN))
 	var body: Control = margin.get_node("Body")
 	assert_int(body.get_theme_constant("separation")).is_equal(MedievalTheme.gap(11))
+
+
+func _two_own_settlements() -> void:
+	GameState.apply_world(FixtureCells.world_json())
+	GameState.apply_settlements([
+		{"x": FixtureCells.HOME.x, "y": FixtureCells.HOME.y, "ownerId": 7, "name": "Koralowa", "resources": {}},
+		{"x": FixtureCells.OWN_SECOND.x, "y": FixtureCells.OWN_SECOND.y, "ownerId": 7, "name": "Popielna", "resources": {}},
+	])
+	GameState.set_active_settlement(FixtureCells.HOME)
+
+
+func test_enter_settlement_activates_it_and_switches_to_the_settlement_view() -> void:
+	_two_own_settlements()
+	var s := _sheets()
+	s.open_inspect(FixtureCells.OWN_SECOND)
+	s.inspect_sheet.action_button.pressed.emit()
+	assert_that(GameState.active_settlement.coord).is_equal(FixtureCells.OWN_SECOND)
+	assert_str(SceneManager.current_view).is_equal(SceneManager.VIEW_ISLAND_DETAIL)
+	assert_bool(s.is_open()).is_false()
+
+
+## „Wróć do osady” nie przełącza osady aktywnej na nowo: bez tego każdy powrót przebudowywałby
+## pasek i widok osady, jakby gracz wybrał inną osadę.
+func test_return_to_the_active_settlement_only_switches_the_view() -> void:
+	_two_own_settlements()
+	var s := _sheets()
+	var changes := [0]
+	var on_change := func() -> void: changes[0] += 1
+	GameState.active_settlement_changed.connect(on_change)
+	s.open_inspect(FixtureCells.HOME)
+	s.inspect_sheet.action_button.pressed.emit()
+	# GameState to autoload: lambda zostałaby podpięta do następnych testów.
+	GameState.active_settlement_changed.disconnect(on_change)
+	assert_int(changes[0]).is_equal(0)
+	assert_that(GameState.active_settlement.coord).is_equal(FixtureCells.HOME)
+	assert_str(SceneManager.current_view).is_equal(SceneManager.VIEW_ISLAND_DETAIL)

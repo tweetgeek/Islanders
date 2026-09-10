@@ -532,3 +532,26 @@ func test_back_plaque_is_a_square_icon_button() -> void:
 	assert_str(String(icon.kind)).is_equal("back")
 	assert_float(icon.anchor_right).is_equal(1.0)
 	assert_bool(world_map.get_script().get_script_constant_map().has("BACK_WIDTH")).is_false()
+
+
+## Glosariusz, Active Settlement: obejrzenie wyspy nigdy nie zmienia osady aktywnej.
+## Dotyczy także własnej osady - inaczej nie dałoby się jej wskazać jako celu transportu.
+func test_tapping_an_own_settlement_inspects_it_without_activating() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa"), _own(FixtureCells.OWN_SECOND.x, FixtureCells.OWN_SECOND.y, "Popielna")])
+	GameState.set_active_settlement(HOME_CELL)
+	var sheets := _sheets()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var camera: MapCamera = world_map.camera
+	var view_before := SceneManager.current_view
+	var centre := camera.get_viewport_rect().size / 2.0
+	for cell in [FixtureCells.OWN_SECOND, HOME_CELL]:
+		_aim(camera, centre, cell)
+		_tap(camera, centre)
+		await await_idle_frame()
+		assert_bool(sheets.is_open()).override_failure_message("tap %s nie otworzył arkusza" % cell).is_true()
+		assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
+		assert_that(GameState.active_settlement.coord).is_equal(HOME_CELL)
+		assert_str(SceneManager.current_view).is_equal(view_before)
+		assert_that(GameState.inspected_coord).is_equal(cell)

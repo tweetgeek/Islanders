@@ -219,11 +219,8 @@ func _on_tapped(world_pos: Vector2, screen_pos: Vector2) -> void:
 	var local := world_pos - WorldGrid.island_center(GameState.world_seed(), cell)
 	if not IslandGenerator.contains(local, island.radius):
 		return
-	var s := GameState.settlement_at(cell)
-	if s != null and s.is_own:
-		GameState.set_active_settlement(cell)
-		SceneManager.show_island_detail()
-		return
+	# Tapnięcie zawsze ogląda, także własną i aktywną osadę; osadę aktywną zmienia wyłącznie
+	# akcja w arkuszu (glosariusz: Active Settlement).
 	GameState.inspect(cell)
 	var sheets := get_tree().get_first_node_in_group("sheets")
 	if sheets != null:
