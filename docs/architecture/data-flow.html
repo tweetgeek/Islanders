@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Islanders — przepływ danych i węzły</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js"></script>
+<!--
+  JAK AKTUALIZOWAĆ TEN PLIK
+  - Diagramy to bloki <pre class="mermaid"> — zwykły tekst Mermaid (https://mermaid.js.org).
+    Nie używaj w nich znaków ; # & ani < (poza <br/>) — psują parser.
+    Kolory węzłów to klasy (data, api, state, core, view, ui, tool, sig, ghost) nadawane liniami
+    "class A,B nazwa". Same klasy są definiowane w skrypcie (CLASSDEFS) osobno dla trybu jasnego
+    i ciemnego — nie wpisuj classDef w diagramach.
+  - Drzewo węzłów: tablica TREE w skrypcie na dole pliku.
+  - Katalog plików: tablica FILES w skrypcie na dole pliku.
+  - Sygnały: diagram w sekcji #sygnaly + tabela pod nim.
+  - Po każdej aktualizacji podbij "Stan na" w nagłówku i dopisz wiersz w sekcji #historia.
+  - Procedura i skrypt sprawdzający: skill .agents/skills/updating-architecture-doc/
+    (python3 .agents/skills/updating-architecture-doc/check_doc.py).
+-->
+<style>
+:root{
+  --bg:#f6f6f4; --card:#ffffff; --subtle:#f0f0ec; --border:#d9d8d2; --border-soft:#e8e7e2;
+  --text:#1d1d1b; --text-soft:#4b4a46; --heading:#111110;
+  --accent:#0f6e7a; --link:#0b5f6a; --warn:#a3302a;
+  --hdr-bg:#1e2a2e; --hdr-text:#f5f5f2; --hdr-soft:#c9d2d4; --hdr-line:rgba(255,255,255,.18);
+  --code-bg:#f0efeb; --code-border:#e0dfd9;
+  /* warstwy architektury — te same kolory mają diagramy (CLASSDEFS) i katalog plików */
+  --l-data:#2f7480; --l-api:#3f68b0; --l-state:#a8740f; --l-core:#4c7f2e;
+  --l-view:#b0602a; --l-ui:#8a4b8a; --l-tool:#6b6b6b; --l-doc:#8a6a3e;
+  --sans:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171a; --card:#1d2024; --subtle:#252a2f; --border:#363c43; --border-soft:#2b3036;
+    --text:#e6e6e3; --text-soft:#b4b7b9; --heading:#f4f4f2;
+    --accent:#5cc3cf; --link:#7fd0da; --warn:#f08d84;
+    --hdr-bg:#0f1214; --hdr-text:#f2f2ef; --hdr-soft:#b9c2c4; --hdr-line:rgba(255,255,255,.14);
+    --code-bg:#262b31; --code-border:#363c43;
+    --l-data:#5fb3bf; --l-api:#86a6e8; --l-state:#e0aa45; --l-core:#8cc06a;
+    --l-view:#e39460; --l-ui:#c890c8; --l-tool:#9d9d9d; --l-doc:#c6a672;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171a; --card:#1d2024; --subtle:#252a2f; --border:#363c43; --border-soft:#2b3036;
+  --text:#e6e6e3; --text-soft:#b4b7b9; --heading:#f4f4f2;
+  --accent:#5cc3cf; --link:#7fd0da; --warn:#f08d84;
+  --hdr-bg:#0f1214; --hdr-text:#f2f2ef; --hdr-soft:#b9c2c4; --hdr-line:rgba(255,255,255,.14);
+  --code-bg:#262b31; --code-border:#363c43;
+  --l-data:#5fb3bf; --l-api:#86a6e8; --l-state:#e0aa45; --l-core:#8cc06a;
+  --l-view:#e39460; --l-ui:#c890c8; --l-tool:#9d9d9d; --l-doc:#c6a672;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:16px}
+body{margin:0; background:var(--bg); color:var(--text); font:16px/1.65 var(--sans); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+code,kbd{font-family:var(--mono); font-size:.86em; background:var(--code-bg); border:1px solid var(--code-border); border-radius:4px; padding:.05em .35em; overflow-wrap:anywhere}
+a{color:var(--link); text-underline-offset:2px}
+h1,h2,h3,h4{font-family:var(--sans); color:var(--heading); line-height:1.3; letter-spacing:-.01em}
+h2{font-size:1.5rem; font-weight:700; margin:0 0 .5rem; display:flex; gap:.6rem; align-items:baseline}
+h2 .num{font-size:.95rem; color:var(--accent); font-weight:700; font-variant-numeric:tabular-nums}
+h3{font-size:1.1rem; font-weight:600; margin:2rem 0 .5rem}
+p{margin:.5rem 0 1rem}
+.lead{color:var(--text-soft); max-width:75ch; font-size:1.02rem}
+
+/* nagłówek */
+header.top{background:var(--hdr-bg); color:var(--hdr-text); padding-block:36px 28px; padding-inline:max(16px, 4vw); position:relative}
+header.top h1{color:var(--hdr-text); font-size:clamp(1.5rem, 3vw, 2.2rem); font-weight:700; margin:0 0 .4rem; padding-right:9rem}
+header.top p{margin:.2rem 0; color:var(--hdr-soft); max-width:80ch}
+.theme-btn{position:absolute; top:22px; right:max(16px, 4vw); font:500 .85rem var(--sans); color:var(--hdr-text); background:transparent; border:1px solid var(--hdr-line); border-radius:8px; padding:.35rem .75rem; cursor:pointer}
+.theme-btn:hover{background:rgba(255,255,255,.08)}
+.meta{display:flex; flex-wrap:wrap; gap:.5rem .6rem; margin-top:1rem; font-size:.88rem; color:var(--hdr-soft)}
+.meta span{border:1px solid var(--hdr-line); border-radius:999px; padding:.15rem .75rem}
+.meta b{color:var(--hdr-text); font-weight:600}
+.meta code{background:transparent; border:0; color:inherit; padding:0}
+.legend{display:flex; flex-wrap:wrap; gap:.4rem; margin-top:1rem}
+.chip{display:inline-flex; align-items:center; gap:.45rem; font-size:.84rem; padding:.2rem .7rem; border-radius:999px; background:var(--card); color:var(--text); border:1px solid var(--border)}
+.chip i{width:.7rem; height:.7rem; border-radius:3px; display:inline-block}
+
+/* układ */
+.layout{display:grid; grid-template-columns:220px minmax(0,1fr); gap:40px; padding-inline:max(16px, 3vw); max-width:1440px; margin:0 auto}
+nav.toc{position:sticky; top:0; align-self:start; max-height:100vh; overflow:auto; padding-block:28px}
+nav.toc .t{font-size:.75rem; font-weight:600; color:var(--text-soft); letter-spacing:.08em; text-transform:uppercase; margin-bottom:.5rem}
+nav.toc a{display:block; text-decoration:none; color:var(--text-soft); font-size:.92rem; padding:.3rem .7rem; border-left:2px solid var(--border-soft)}
+nav.toc a:hover{color:var(--text); border-left-color:var(--border)}
+nav.toc a.active{color:var(--heading); border-left-color:var(--accent); background:var(--subtle); font-weight:600}
+main{padding-block:32px 80px; min-width:0}
+section{margin-bottom:64px}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  nav.toc{position:static; max-height:none; padding-block:16px 0; display:flex; flex-wrap:wrap; gap:.3rem}
+  nav.toc .t{width:100%}
+  nav.toc a{border:1px solid var(--border-soft); border-radius:999px; font-size:.82rem; padding:.15rem .6rem}
+  header.top h1{padding-right:0}
+  .theme-btn{position:static; margin-top:.8rem}
+}
+
+/* karty zasad */
+.principles{display:grid; grid-template-columns:repeat(auto-fill, minmax(290px,1fr)); gap:14px; margin-top:1rem}
+.pr{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px 18px 14px; border-top:3px solid var(--c, var(--l-state))}
+.pr h4{margin:0 0 .35rem; font-size:1rem; font-weight:600}
+.pr p{margin:0; font-size:.94rem; color:var(--text-soft)}
+
+/* diagramy */
+figure.diagram{margin:1rem 0 1.5rem; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px 12px; position:relative}
+figure.diagram .bar{display:flex; justify-content:space-between; align-items:center; gap:.6rem; margin-bottom:.5rem}
+figure.diagram figcaption{font-size:.9rem; color:var(--text-soft); font-weight:500}
+.dbtn{font:500 .82rem var(--sans); background:var(--subtle); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:.25rem .65rem; cursor:pointer; white-space:nowrap}
+.dbtn:hover{border-color:var(--text-soft)}
+.dwrap{overflow-x:auto}
+pre.mermaid{display:none}
+.mm{text-align:center; min-height:60px}
+.mm .err{color:var(--warn); font-size:.9rem; text-align:left}
+figure.diagram.fullscreen{position:fixed; inset:0; z-index:1000; margin:0; border-radius:0; padding:14px 18px; display:flex; flex-direction:column}
+figure.diagram.fullscreen .dwrap{flex:1; overflow:auto}
+figure.diagram.fullscreen .mm svg{max-width:none !important}
+.zoomset{display:none; gap:.3rem; margin-left:auto}
+figure.diagram.fullscreen .zoomset{display:flex}
+
+/* tabele */
+.tbl{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--card); margin:1rem 0}
+table{border-collapse:collapse; width:100%; font-size:.92rem}
+th,td{text-align:left; vertical-align:top; padding:.6rem .8rem; border-bottom:1px solid var(--border-soft)}
+th{font-size:.78rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-soft); background:var(--subtle)}
+tr:last-child td{border-bottom:0}
+td code{white-space:normal}
+td b{font-weight:600}
+.none{color:var(--warn)}
+
+/* drzewo */
+.tree-tools{display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin:.6rem 0}
+.tree-tools .hint{font-size:.86rem; color:var(--text-soft); margin-left:.4rem}
+.tree{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 10px 12px 4px; overflow-x:auto; font-size:.93rem}
+.tree ul{list-style:none; margin:0; padding-left:1.3rem; border-left:1px solid var(--border-soft)}
+.tree > ul{border-left:0; padding-left:.4rem}
+.tree li{margin:0; position:relative}
+.tn{display:flex; flex-wrap:wrap; align-items:baseline; gap:.2rem .5rem; padding:.2rem .35rem; border-radius:6px; cursor:default}
+.tn.has{cursor:pointer}
+.tn:hover{background:var(--subtle)}
+.caret{width:1em; display:inline-block; color:var(--text-soft); font-size:.8em; text-align:center}
+.dot{width:.62rem; height:.62rem; border-radius:50%; display:inline-block; transform:translateY(-.05em)}
+.dot.n2d{background:#5b7be0} .dot.ctl{background:#3fa34d} .dot.nd{background:#8d8d8d} .dot.win{background:var(--text)}
+.tn b{font-family:var(--mono); font-size:.86rem; font-weight:600}
+.ty{font-size:.82rem; color:var(--text-soft)}
+.tag{font-size:.72rem; font-family:var(--mono); border-radius:4px; padding:0 .4rem; line-height:1.6; color:var(--text);
+  border:1px solid var(--c); background:color-mix(in srgb, var(--c) 15%, var(--card))}
+.tag.auto{--c:var(--l-state)} .tag.grp{--c:var(--l-ui)} .tag.lyr{--c:var(--l-data)} .tag.dyn{--c:var(--l-view)}
+.tn code{font-size:.74rem}
+.tn .note{flex-basis:100%; padding-left:2.4rem; font-size:.87rem; color:var(--text-soft); line-height:1.45}
+.tree li.closed > ul{display:none}
+
+/* stos warstw */
+.stack{display:grid; gap:6px; margin:1rem 0}
+.lay{display:grid; grid-template-columns:130px minmax(0,1fr); gap:14px; align-items:center; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:.6rem .9rem; border-left:5px solid var(--c)}
+.lay .z{font-family:var(--mono); font-size:.82rem; color:var(--text-soft)}
+.lay .z b{display:block; font-size:1.05rem; color:var(--text)}
+.lay .d{font-size:.93rem}
+.lay .d small{display:block; color:var(--text-soft); font-size:.87rem; margin-top:.1rem}
+@media (max-width:560px){ .lay{grid-template-columns:1fr} }
+
+/* katalog */
+.filter{display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin:.8rem 0 1rem}
+.filter input{font:inherit; font-size:.95rem; padding:.5rem .85rem; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); min-width:0; flex:1 1 260px; max-width:420px}
+.filter input:focus{outline:2px solid var(--accent); outline-offset:1px}
+.filter .count{font-size:.86rem; color:var(--text-soft)}
+.group{margin:1.6rem 0 .4rem}
+.group h3{margin:0 0 .2rem; display:flex; align-items:center; gap:.5rem}
+.group h3 i{width:.8rem; height:.8rem; border-radius:3px}
+.group > p{margin:.1rem 0 .7rem; font-size:.92rem; color:var(--text-soft)}
+.files{display:grid; grid-template-columns:repeat(auto-fill, minmax(330px,1fr)); gap:12px}
+@media (max-width:420px){ .files{grid-template-columns:1fr} }
+.file{background:var(--card); border:1px solid var(--border); border-left:4px solid var(--c); border-radius:8px; padding:.7rem .9rem .75rem}
+.file .p{font-family:var(--mono); font-size:.82rem; font-weight:600; color:var(--heading); word-break:break-all}
+.file .d{font-size:.92rem; margin:.3rem 0 0}
+.file .k{font-size:.84rem; color:var(--text-soft); margin-top:.4rem}
+.file .k b{font-weight:600; color:var(--text)}
+
+.callout{background:color-mix(in srgb, var(--accent) 9%, var(--card)); border:1px solid color-mix(in srgb, var(--accent) 45%, var(--card)); border-left:4px solid var(--accent); border-radius:8px; padding:.8rem 1rem; font-size:.95rem; margin:1rem 0}
+ul.clean{padding-left:1.2rem} ul.clean li{margin:.35rem 0}
+ol.steps li{margin:.35rem 0}
+footer{color:var(--text-soft); font-size:.86rem; border-top:1px solid var(--border); padding-top:1rem}
+</style>
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+
+<header class="top">
+  <button class="theme-btn" id="themeBtn" type="button">Tryb ciemny</button>
+  <h1>Islanders — przepływ danych i drzewo węzłów</h1>
+  <p>Mapa klienta Godot: skąd przychodzą dane, gdzie żyje stan, kto na kogo reaguje i które węzły co rysują. Każda sekcja opisuje jedną warstwę albo jeden przepływ; na końcu jest katalog plików i instrukcja aktualizacji.</p>
+  <div class="meta">
+    <span>Stan na: <b>40fc5e0</b> · 2026-09-10</span>
+    <span>Silnik: <b>Godot 4.8</b> · GL Compatibility</span>
+    <span>Viewport: <b>1080 × 1920</b> (portret)</span>
+    <span>Źródło danych: <b>MockProvider</b> (<code>islanders/api/use_mock=true</code>)</span>
+  </div>
+  <div class="legend" aria-label="Legenda warstw">
+    <span class="chip"><i style="background:var(--l-data)"></i>Źródła danych</span>
+    <span class="chip"><i style="background:var(--l-api)"></i>API (providerzy)</span>
+    <span class="chip"><i style="background:var(--l-state)"></i>Autoloady / stan</span>
+    <span class="chip"><i style="background:var(--l-core)"></i>Domena (scripts/core)</span>
+    <span class="chip"><i style="background:var(--l-view)"></i>Widoki i rysowanie</span>
+    <span class="chip"><i style="background:var(--l-ui)"></i>Chrome UI</span>
+    <span class="chip"><i style="background:var(--l-tool)"></i>Narzędzia i testy</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Spis treści">
+  <div class="t">Spis treści</div>
+  <a href="#zasady">1. Zasady w pigułce</a>
+  <a href="#warstwy">2. Architektura warstw</a>
+  <a href="#dane">3. Przepływ danych</a>
+  <a href="#start">4. Start gry</a>
+  <a href="#wezly">5. Drzewo węzłów</a>
+  <a href="#sygnaly">6. Sygnały i wywołania</a>
+  <a href="#interakcje">7. Interakcje gracza</a>
+  <a href="#czas">8. Resync i pętla klatki</a>
+  <a href="#geografia">9. Geografia z seeda</a>
+  <a href="#pliki">10. Katalog plików</a>
+  <a href="#luki">11. Otwarte końce</a>
+  <a href="#aktualizacja">12. Jak aktualizować</a>
+  <a href="#historia">13. Historia zmian</a>
+</nav>
+
+<main>
+
+<!-- ============================================================ 1 -->
+<section id="zasady">
+  <h2><span class="num">1</span>Zasady w pigułce</h2>
+  <p class="lead">Sześć reguł, które tłumaczą prawie każdą strzałkę w dalszych diagramach. Wynikają z kodu i komentarzy w nim, nie z planów.</p>
+  <div class="principles">
+    <div class="pr"><h4>GameState to jedyne źródło prawdy</h4><p>Cały stan klienta siedzi w autoloadzie <code>GameState</code>. Zmienia się tylko przez <code>apply_*</code>, <code>set_active_settlement</code>, <code>inspect</code> i <code>finish_loading</code>. Widoki i UI tylko czytają i słuchają sygnałów.</p></div>
+    <div class="pr" style="border-top-color:var(--l-core)"><h4>Geografia nie przychodzi z API</h4><p>Istnienie wyspy, biom, promień i znalezisko liczy <code>WorldGrid</code> z seeda świata i <code>(x, y)</code> (ADR 0001). API niesie tylko osady i floty. Osada na komórce morza jest odrzucana.</p></div>
+    <div class="pr" style="border-top-color:var(--l-core)"><h4>Jeden zegar, zasoby liczone w locie</h4><p><code>TimeUtil.now()</code> to jedyne miejsce czytające zegar, skalibrowane na <code>serverTime</code>. Zasoby = <code>stored + rate × godziny</code>, obcięte do <code>capacity</code>. Klient nie symuluje produkcji.</p></div>
+    <div class="pr" style="border-top-color:var(--l-ui)"><h4>Sygnały w górę, wywołania w dół</h4><p>Stan ogłasza zmiany sygnałami, a akcje gracza to bezpośrednie wywołania metod. Chrome UI jest szukany przez grupy <code>"hud"</code> i <code>"sheets"</code>, więc widoki nie trzymają do niego referencji.</p></div>
+    <div class="pr" style="border-top-color:var(--l-view)"><h4>Jeden widok naraz, chrome zawsze</h4><p><code>SceneManager</code> trzyma w <code>ViewContainer</code> dokładnie jeden widok: <code>WorldMap</code> albo <code>IslandDetail</code>. <code>HUD</code>, <code>Dock</code> i <code>Sheets</code> żyją stale w <code>Main</code> na własnych CanvasLayerach.</p></div>
+    <div class="pr" style="border-top-color:var(--l-data)"><h4>Dane publiczne i prywatne</h4><p><code>Settlement.is_own</code> = rekord zawiera <code>resources</code>. Cudza osada ma tylko nazwę i właściciela, a nadchodząca cudza flota nie ma <code>ships</code> ani <code>cargo</code>.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="warstwy">
+  <h2><span class="num">2</span>Architektura warstw</h2>
+  <p class="lead">Dane płyną z góry na dół: źródło → provider → <code>ApiClient</code> → <code>GameState</code> → widoki i chrome. Domena (<code>scripts/core</code>) to czyste klasy <code>RefCounted</code> bez węzłów, używane przez wszystkie warstwy. Grube strzałki to sygnały, cienkie to wywołania. Drogę w drugą stronę — akcje gracza z widoków i UI do <code>GameState</code>, <code>SceneManager</code> i <code>Sheets</code> — pokazuje <a href="#sygnaly">sekcja 6</a>.</p>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Warstwy klienta i główne zależności</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+flowchart TB
+  subgraph SRC["① Źródła danych"]
+    FX["fixtures/*.json<br/>world · settlements · fleets"]
+    NEST["Backend NestJS<br/>GET /world · /settlements · /fleets"]
+  end
+  subgraph APIL["② scripts/api"]
+    MP["MockProvider<br/>fixtures + symulacja produkcji"]
+    HP["HttpProvider<br/>HTTPRequest → JSON"]
+  end
+  AC["③ ApiClient<br/>load_initial<br/>resync co 60 s"]
+  GS["③ GameState<br/>jedyne źródło prawdy"]
+  SM["③ SceneManager<br/>jeden widok naraz"]
+  subgraph VIEWS["⑤ Widoki"]
+    WM["WorldMap<br/>MapCamera · Water<br/>FleetRenderer · chunki wysp"]
+    ID["IslandDetail<br/>IslandGenerator · SlotPlaque"]
+  end
+  subgraph CHROME["⑥ Chrome UI"]
+    HUD["HUD<br/>pasek osady aktywnej"]
+    DOCK["Dock<br/>Floty · Mapa"]
+    SH["Sheets<br/>Building · Inspect · Fleets"]
+  end
+  subgraph CORE["④ scripts/core"]
+    WG["WorldGrid<br/>geografia z seeda"]
+    MOD["GameWorld · Settlement<br/>Fleet · Island"]
+    TAB["Biome · Buildings<br/>ResourceTypes · Coord"]
+    TU["TimeUtil<br/>jedyny zegar"]
+  end
+  FX -->|JSON| MP
+  NEST -->|HTTP| HP
+  MP -->|"await fetch_*"| AC
+  HP -->|"await fetch_*"| AC
+  AC -->|"apply_world · apply_settlements · apply_fleets"| GS
+  AC ~~~ SM
+  GS ==>|sygnały| WM
+  GS ==>|sygnały| ID
+  GS ==>|sygnały| HUD
+  GS ==>|sygnały| DOCK
+  GS ==>|sygnały| SH
+  SM -->|"instantiate / queue_free"| WM
+  SM -->|"instantiate / queue_free"| ID
+  GS -.->|"island_at · from_json"| WG
+  WG ~~~ MOD ~~~ TAB ~~~ TU
+  class FX,NEST data
+  class MP,HP api
+  class AC,GS,SM state
+  class WG,MOD,TAB,TU core
+  class WM,ID view
+  class HUD,DOCK,SH ui
+    </pre></div>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th>Warstwa</th><th>Katalog</th><th>Odpowiedzialność</th><th>Nie robi</th></tr></thead>
+    <tbody>
+      <tr><td>① Źródła</td><td><code>fixtures/</code>, backend</td><td>Surowy JSON: świat, osady, floty.</td><td>Nie niesie geografii wysp.</td></tr>
+      <tr><td>② API</td><td><code>scripts/api/</code></td><td>Pobiera JSON, zwraca <code>Dictionary</code>/<code>Array</code> albo <code>null</code> przy błędzie.</td><td>Nie zna <code>GameState</code> ani modeli.</td></tr>
+      <tr><td>③ Autoloady</td><td><code>scenes/autoload/</code></td><td>Orkiestracja ładowania (<code>ApiClient</code>), stan (<code>GameState</code>), nawigacja (<code>SceneManager</code>).</td><td>Nie rysują niczego.</td></tr>
+      <tr><td>④ Domena</td><td><code>scripts/core/</code></td><td>Modele, parsowanie JSON, reguły gry, geografia, czas, formatowanie liczb.</td><td>Brak węzłów i sygnałów, więc testy jednostkowe są proste.</td></tr>
+      <tr><td>⑤ Widoki</td><td><code>scenes/views/</code>, <code>scenes/procedural/</code></td><td>Świat 2D: mapa z chunkami, osada ze slotami, kamera, rysowanie wysp i flot.</td><td>Nie mutują stanu poza <code>set_active_settlement</code>/<code>inspect</code>.</td></tr>
+      <tr><td>⑥ Chrome</td><td><code>scenes/ui/</code></td><td>Pasek HUD, dock, arkusze od dołu, motyw, ikony, safe area.</td><td>Nie liczą logiki gry, tylko ją wyświetlają.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="dane">
+  <h2><span class="num">3</span>Przepływ danych: JSON → model → ekran</h2>
+  <p class="lead">Co dokładnie dzieje się z każdym polem po drodze. Dane z trzech endpointów zamieniają się w modele z <code>scripts/core</code>, lądują w słownikach <code>GameState</code>, a UI wylicza z nich wartości zależne od czasu w każdej klatce.</p>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Od odpowiedzi API do tego, co widać na ekranie</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+flowchart LR
+  subgraph JSON["JSON z API"]
+    WJ["GET /world<br/>id, seed, size, wind, status,<br/>playerId, homeSettlement, serverTime"]
+    SJ["GET /settlements<br/>x, y, ownerId, name<br/>+ tylko własne: resources, productionPerHour,<br/>capacity, population, buildings, lastSyncAt"]
+    FJ["GET /fleets<br/>id, ownerId, mission, from, to,<br/>ships, cargo, departAt, arriveAt"]
+  end
+  subgraph PARSE["Parsowanie"]
+    GW["GameWorld.from_json"]
+    TUo["TimeUtil.set_server_time<br/>offset zegara klienta"]
+    ISL["WorldGrid.island_at(seed, xy)<br/>null = morze → rekord odrzucony"]
+    ST["Settlement.from_json(d, biome)<br/>is_own = ma resources<br/>buildings ∩ Biome.slots"]
+    FL["Fleet.from_json<br/>bez id / from / to → odrzucona"]
+  end
+  subgraph STATE["GameState"]
+    W["world"]
+    S["settlements<br/>Coord.key → Settlement"]
+    F["fleets<br/>id → Fleet"]
+    A["active_settlement"]
+    I["inspected_coord"]
+  end
+  subgraph READ["Odczyt w UI"]
+    R1["HUD<br/>current_resources(now)<br/>stored + rate · h, clamp do capacity"]
+    R2["FleetRenderer · FleetCard · Dock<br/>position_at · progress · remaining_seconds"]
+    R3["WorldMap<br/>island_at + settlement_at<br/>→ IslandGenerator + pierścień"]
+    R4["IslandDetail<br/>poziomy budynków w slotach"]
+    R5["InspectSheet<br/>nazwa i właściciel albo Island.deposit"]
+  end
+  WJ --> GW --> W
+  WJ -->|serverTime| TUo
+  SJ -->|"x, y + world.seed"| ISL
+  ISL -->|biome| ST
+  SJ --> ST --> S
+  FJ --> FL --> F
+  S -->|"finish_loading: home_settlement"| A
+  A --> R1
+  A --> R4
+  F --> R2
+  W -->|"seed, size"| R3
+  S --> R3
+  S --> R5
+  I -.->|"nikt nie słucha"| R5
+  class WJ,SJ,FJ data
+  class GW,TUo,ISL,ST,FL core
+  class W,S,F,A,I state
+  class R2,R3,R4 view
+  class R1,R5 ui
+    </pre></div>
+  </figure>
+  <h3>Reguły walidacji po drodze</h3>
+  <ul class="clean">
+    <li><b>Osada na morzu</b> — <code>GameState.apply_settlements</code> pyta <code>WorldGrid</code> o wyspę. Jeśli komórka jest morzem, rekord jest odrzucany z <code>push_error</code>, bo to znak rozjazdu kontraktu geografii z backendem.</li>
+    <li><b>Biom decyduje o budynkach</b> — biom osady nie przychodzi z API, tylko z <code>WorldGrid</code>. <code>Settlement._parse_buildings</code> odrzuca budynki spoza <code>Biome.slots(biome)</code> z ostrzeżeniem, a produkcja zasobu spoza biomu tylko generuje ostrzeżenie (wartość zostaje).</li>
+    <li><b>Zasoby</b> — <code>ResourceTypes.normalize</code> uzupełnia brakujące klucze zerami i odrzuca nieznane.</li>
+    <li><b>Floty</b> — przy każdym <code>apply_fleets</code> słownik jest czyszczony i budowany od nowa. Floty, które już dotarły, zostają w stanie, ale UI je pomija (<code>is_arrived(now)</code>).</li>
+    <li><b>Osada aktywna zawsze własna</b> — jeśli resync pokaże, że aktywna osada należy już do kogoś innego, <code>GameState</code> cofa się do osady domowej (albo do <code>null</code>) i emituje <code>active_settlement_changed</code>.</li>
+    <li><b>Częściowa awaria</b> — nieudany <code>fetch_world</code> przerywa ładowanie. Nieudane osady lub floty tylko pomijają swoje <code>apply_*</code>, gra dochodzi do <code>state_loaded</code>, a braki uzupełni kolejny resync.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="start">
+  <h2><span class="num">4</span>Start gry</h2>
+  <p class="lead">Od uruchomienia do pierwszego widoku. Autoloady powstają przed sceną główną (kolejność z <code>project.godot</code>: <code>GameState</code> → <code>ApiClient</code> → <code>SceneManager</code>). W <code>Main</code> dzieci są gotowe przed rodzicem, więc <code>HUD</code>, <code>Dock</code> i <code>Sheets</code> mają już podpięte sygnały, zanim <code>Main._ready()</code> ruszy z ładowaniem.</p>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Sekwencja: Main._ready() → pierwszy widok IslandDetail</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+sequenceDiagram
+  participant Main
+  participant SM as SceneManager
+  participant AC as ApiClient
+  participant P as Provider (Mock / Http)
+  participant GS as GameState
+  participant WG as WorldGrid
+  participant UI as HUD · Dock · Sheets
+  Note over AC: _ready(): wybiera providera wg islanders/api/use_mock, tworzy Timer 60 s
+  Main->>Main: MedievalTheme.install() — motyw globalnie
+  Main->>SM: register_container(ViewContainer)
+  Main->>GS: state_loaded.connect(SM.show_island_detail, ONE_SHOT)
+  Main->>AC: load_initial()
+  AC->>P: await fetch_world()
+  P-->>AC: Dictionary + serverTime
+  alt world == null
+    AC-->>Main: request_failed("world") — koniec ładowania
+  end
+  AC->>AC: TimeUtil.set_server_time(serverTime)
+  AC->>GS: apply_world(d) → GameWorld.from_json
+  AC->>P: await fetch_settlements()
+  P-->>AC: Array
+  AC->>GS: apply_settlements(arr)
+  loop każdy rekord osady
+    GS->>WG: island_at(seed, coord)
+    alt komórka to morze
+      GS->>GS: push_error, rekord odrzucony (ADR 0001)
+    else wyspa
+      GS->>GS: Settlement.from_json(d, island.biome)
+      GS-->>UI: settlement_updated(coord)
+    end
+  end
+  AC->>P: await fetch_fleets()
+  P-->>AC: Array
+  AC->>GS: apply_fleets(arr)
+  GS-->>UI: fleets_updated — Dock liczy odznakę
+  AC->>GS: finish_loading()
+  GS->>GS: set_active_settlement(world.home_settlement)
+  GS-->>UI: active_settlement_changed — HUD wypełnia pasek
+  GS-->>SM: state_loaded
+  SM->>SM: _swap(IslandDetail.tscn) + fade 0,18 s
+  SM-->>UI: view_changed(path) — Dock pokazuje przycisk Mapa
+  AC->>AC: Timer.start() — resync co 60 s
+    </pre></div>
+  </figure>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="wezly">
+  <h2><span class="num">5</span>Drzewo węzłów w czasie gry</h2>
+  <p class="lead">Tak wygląda <code>SceneTree</code> po starcie. Węzły oznaczone <span class="tag dyn">dyn</span> powstają w kodzie (nie ma ich w plikach <code>.tscn</code>). W <code>ViewContainer</code> jest zawsze tylko jeden z dwóch widoków. Kliknij węzeł, żeby zwinąć albo rozwinąć gałąź.</p>
+  <div class="tree-tools">
+    <button class="dbtn" id="expandAll">Rozwiń wszystko</button>
+    <button class="dbtn" id="collapseAll">Zwiń wszystko</button>
+    <span class="hint"><span class="dot n2d"></span> Node2D i pochodne · <span class="dot ctl"></span> Control i pochodne · <span class="dot nd"></span> Node / CanvasLayer / inne</span>
+  </div>
+  <div class="tree" id="tree"></div>
+
+  <h3>Stos warstw: kolejność rysowania i wejścia</h3>
+  <p>Wyższa warstwa rysuje się nad niższą i pierwsza dostaje dotyk. Widoki obsługują gesty w <code>_unhandled_input</code>, więc dostają tylko to, czego nie złapała żadna kontrolka UI.</p>
+  <div class="stack">
+    <div class="lay" style="--c:var(--l-ui)"><div class="z"><b>12</b>Sheets</div><div class="d">Backdrop i arkusze od dołu. <small>Gdy arkusz jest otwarty, pełnoekranowy <code>Backdrop</code> (mouse_filter STOP) łapie każdy tap i zamyka arkusz. Gdy zamknięty, cała warstwa ma <code>visible = false</code>.</small></div></div>
+    <div class="lay" style="--c:var(--l-ui)"><div class="z"><b>11</b>Dock</div><div class="d">Przyciski Floty i Mapa w dolnych rogach. <small>Tylko przyciski łapią wejście, reszta ekranu przepuszcza.</small></div></div>
+    <div class="lay" style="--c:var(--l-ui)"><div class="z"><b>10</b>HUD</div><div class="d">Górny pasek osady aktywnej. <small>Karty zasobów mają mouse_filter IGNORE, żeby dało się przeciągać mapę z paska. Martwą strefę dla tapnięć pod paskiem robi <code>WorldMap._on_tapped</code>.</small></div></div>
+    <div class="lay" style="--c:var(--l-view)"><div class="z"><b>1</b>UI widoku</div><div class="d">CanvasLayer wewnątrz widoku. <small>WorldMap: plakietka OSADA, współrzędne, zoom. IslandDetail: podpowiedź „Dotknij slotu…”.</small></div></div>
+    <div class="lay" style="--c:var(--l-view)"><div class="z"><b>0</b>Świat 2D</div><div class="d">Node2D widoku widziany przez jego Camera2D. <small>Wyspy, siatka wody, floty, sloty. Wejście: <code>MapCamera._unhandled_input</code> (pan/pinch/tap) albo <code>IslandDetail._unhandled_input</code> (tap w slot).</small></div></div>
+    <div class="lay" style="--c:var(--l-data)"><div class="z"><b>−100</b>SeaBackground</div><div class="d">Pełnoekranowy <code>ColorRect</code> w kolorze <code>MedievalTheme.SEA</code>. <small>mouse_filter IGNORE — jest tylko tłem.</small></div></div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="sygnaly">
+  <h2><span class="num">6</span>Sygnały i wywołania</h2>
+  <p class="lead">Pigułki to sygnały, prostokąty to węzły. Strzałka od węzła do pigułki oznacza, że węzeł emituje sygnał, a od pigułki do węzła — że węzeł go słucha (na strzałce jest metoda albo reakcja). Przerywane linie prowadzą do sygnałów bez odbiorców.</p>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Mapa sygnałów (emiter → sygnał → odbiorca)</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+flowchart LR
+  GS["GameState"]
+  AC["ApiClient"]
+  SM["SceneManager"]
+  TMR["Timer w ApiClient"]
+  MAIN["Main"]
+  WM["WorldMap"]
+  ID["IslandDetail"]
+  CAM["MapCamera"]
+  FR["FleetRenderer"]
+  HUD["HUD"]
+  DOCK["Dock"]
+  SH["Sheets"]
+  BS["BuildingSheet"]
+  FS["FleetsSheet"]
+  FC["FleetCard"]
+  ALL3["BuildingSheet · InspectSheet · FleetsSheet"]
+  NONE["∅ brak odbiorców"]
+
+  t1(["timeout"])
+  a1(["request_failed(reason)"])
+  a2(["synced"])
+  g1(["state_loaded"])
+  g2(["settlement_updated(coord)"])
+  g3(["active_settlement_changed"])
+  g4(["fleets_updated"])
+  g5(["inspected_island_changed(coord)"])
+  m1(["view_changed(path)"])
+  h1(["bar_height_changed"])
+  c1(["tapped(world_pos, screen_pos)"])
+  b1(["upgrade_requested(coord, building)"])
+  s1(["upgrade_requested(coord, building)"])
+  f1(["tapped(fleet)"])
+  f2(["fleet_tapped(fleet)"])
+  x1(["close_requested"])
+
+  TMR --> t1 -->|resync| AC
+  AC --> a1 -->|push_error| MAIN
+  AC --> a2 -.-> NONE
+  GS --> g1
+  g1 -->|"show_island_detail, ONE_SHOT"| SM
+  g1 -->|_sync_visibility| DOCK
+  GS --> g2
+  g2 -->|_on_settlement_updated| HUD
+  g2 -->|"przebuduj chunk + etykiety"| WM
+  g2 -->|_refresh| ID
+  GS --> g3
+  g3 -->|_on_active_changed| HUD
+  g3 -->|_refresh| ID
+  GS --> g4
+  g4 -->|refresh| FR
+  g4 -->|refresh_badge| DOCK
+  g4 -->|"refresh, gdy widoczny"| FS
+  GS --> g5 -.-> NONE
+  SM --> m1
+  m1 -->|_sync_visibility| DOCK
+  m1 -->|_hide_now| SH
+  HUD --> h1
+  h1 -->|_layout_ui| WM
+  h1 -->|_layout| ID
+  CAM --> c1 -->|_on_tapped| WM
+  BS --> b1 -->|przekazuje dalej| SH
+  SH --> s1 -->|"print — TODO API"| MAIN
+  FC --> f1 -->|przekazuje dalej| FS
+  FS --> f2 -->|"close + show_world_map_at"| SH
+  ALL3 --> x1 -->|close| SH
+
+  class GS,AC,SM,TMR state
+  class MAIN,WM,ID,CAM,FR view
+  class HUD,DOCK,SH,BS,FS,FC,ALL3 ui
+  class t1,a1,a2,g1,g2,g3,g4,g5,m1,h1,c1,b1,s1,f1,f2,x1 sig
+  class NONE ghost
+    </pre></div>
+  </figure>
+
+  <h3>Wszystkie sygnały</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Sygnał</th><th>Emiter</th><th>Kiedy</th><th>Odbiorcy → reakcja</th></tr></thead>
+    <tbody>
+      <tr><td><code>state_loaded</code></td><td>GameState</td><td>Koniec <code>finish_loading()</code>, raz po starcie.</td><td><b>SceneManager.show_island_detail</b> (podpina Main, ONE_SHOT) — pierwszy widok.<br><b>Dock._sync_visibility</b> — przycisk Mapa.</td></tr>
+      <tr><td><code>settlement_updated(coord)</code></td><td>GameState</td><td>Każdy przyjęty rekord w <code>apply_settlements</code>, czyli przy starcie i przy każdym resyncu.</td><td><b>HUD</b> — odświeża pasek, jeśli to osada aktywna.<br><b>WorldMap</b> — usuwa chunk z tą komórką, dodaje go do kolejki i przebudowuje etykiety.<br><b>IslandDetail</b> — przebudowuje wyspę, jeśli to wyświetlana osada.</td></tr>
+      <tr><td><code>active_settlement_changed</code></td><td>GameState</td><td><code>set_active_settlement()</code> albo utrata osady aktywnej przy resyncu.</td><td><b>HUD._on_active_changed</b> — nazwa, biom, stawki, populacja.<br><b>IslandDetail._refresh</b> — nowa wyspa i sloty.</td></tr>
+      <tr><td><code>fleets_updated</code></td><td>GameState</td><td><code>apply_fleets()</code> przy starcie i resyncu.</td><td><b>FleetRenderer.refresh</b> (podpina WorldMap, więc działa tylko na mapie).<br><b>Dock.refresh_badge</b>.<br><b>FleetsSheet.refresh</b> — tylko gdy arkusz jest widoczny.</td></tr>
+      <tr><td><code>inspected_island_changed(coord)</code></td><td>GameState</td><td><code>inspect(coord)</code> z <code>WorldMap._on_tapped</code>.</td><td class="none">Brak odbiorców — InspectSheet otwiera się wprost przez <code>Sheets.open_inspect</code>.</td></tr>
+      <tr><td><code>request_failed(reason)</code></td><td>ApiClient</td><td>Provider zwrócił <code>null</code>: <code>"world"</code>, <code>"settlements"</code> albo <code>"fleets"</code>.</td><td><b>Main</b> — tylko <code>push_error</code>, bez komunikatu w UI.</td></tr>
+      <tr><td><code>synced</code></td><td>ApiClient</td><td>Koniec udanego <code>resync()</code>.</td><td class="none">Brak odbiorców.</td></tr>
+      <tr><td><code>timeout</code></td><td>Timer (dziecko ApiClient)</td><td>Co 60 s od końca <code>load_initial()</code>.</td><td><b>ApiClient.resync()</b>.</td></tr>
+      <tr><td><code>view_changed(path)</code></td><td>SceneManager</td><td>Po każdym <code>_swap()</code>.</td><td><b>Dock._sync_visibility</b> — Mapa widoczna tylko w IslandDetail.<br><b>Sheets._hide_now</b> — arkusze znikają bez animacji.</td></tr>
+      <tr><td><code>bar_height_changed</code></td><td>HUD</td><td>Realna zmiana wysokości paska (resize, orientacja, safe area).</td><td><b>WorldMap._layout_ui</b>, <b>IslandDetail._layout</b> — układają UI i kamerę pod paskiem.</td></tr>
+      <tr><td><code>tapped(world_pos, screen_pos)</code></td><td>MapCamera</td><td>Dotyk krótszy niż 0,25 s i przesunięty o mniej niż 12 px.</td><td><b>WorldMap._on_tapped</b>.</td></tr>
+      <tr><td><code>upgrade_requested(coord, building)</code></td><td>BuildingSheet → Sheets</td><td>Przycisk BUDUJ / ULEPSZ.</td><td><b>Sheets</b> przekazuje dalej → <b>Main</b>: <code>print()</code> (miejsce pod API).</td></tr>
+      <tr><td><code>close_requested</code></td><td>każdy arkusz</td><td>✕, ZAMKNIJ albo po ULEPSZ.</td><td><b>Sheets.close()</b>.</td></tr>
+      <tr><td><code>tapped(fleet)</code> → <code>fleet_tapped(fleet)</code></td><td>FleetCard → FleetsSheet</td><td>Puszczenie palca na karcie floty.</td><td><b>Sheets._on_fleet_tapped</b> → <code>close()</code> + <code>SceneManager.show_world_map_at(pozycja floty)</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Bezpośrednie wywołania (komendy w dół)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Kto</th><th>Woła</th><th>Po co</th></tr></thead>
+    <tbody>
+      <tr><td>Main</td><td><code>MedievalTheme.install()</code>, <code>SceneManager.register_container()</code>, <code>ApiClient.load_initial()</code></td><td>Bootstrap gry.</td></tr>
+      <tr><td>ApiClient</td><td><code>provider.fetch_*()</code>, <code>GameState.apply_*</code>, <code>finish_loading()</code>, <code>TimeUtil.set_server_time()</code></td><td>Ładowanie i resync.</td></tr>
+      <tr><td>WorldMap</td><td><code>GameState.island_at / settlement_at / set_active_settlement / inspect</code>, <code>SceneManager.show_island_detail()</code>, grupa <code>"sheets"</code>.<code>open_inspect()</code>, grupa <code>"hud"</code>.<code>bar_height()</code></td><td>Budowa chunków, tap w wyspę, powrót do osady, układ UI.</td></tr>
+      <tr><td>IslandDetail</td><td><code>generator.build / slot_at / set_pressed</code>, grupa <code>"sheets"</code>.<code>open_building()</code>, grupa <code>"hud"</code>.<code>bar_height()</code></td><td>Rysowanie osady i tap w slot.</td></tr>
+      <tr><td>Dock</td><td>grupa <code>"sheets"</code>.<code>open_fleets()</code>, <code>SceneManager.show_world_map()</code></td><td>Przyciski Floty i Mapa.</td></tr>
+      <tr><td>Sheets</td><td><code>FleetsSheet.refresh()</code>, <code>InspectSheet.open()</code>, <code>BuildingSheet.open()</code>, <code>SceneManager.show_world_map_at()</code></td><td>Otwieranie arkuszy, skok do floty.</td></tr>
+      <tr><td>SceneManager</td><td><code>WorldMap.focus(pos)</code> → <code>MapCamera.jump_to()</code></td><td>Skok kamery, gdy mapa jest już otwarta.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="interakcje">
+  <h2><span class="num">7</span>Interakcje gracza</h2>
+  <p class="lead">Trzy główne ścieżki od dotyku do reakcji. Smoke test (<code>tools/smoke_probe.gd</code>) przechodzi wszystkie trzy: osada → mapa → arkusze → osada.</p>
+
+  <h3>7.1 Tap w wyspę na mapie świata</h3>
+  <figure class="diagram">
+    <div class="bar"><figcaption>MapCamera → WorldMap → aktywacja osady albo InspectSheet</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+sequenceDiagram
+  actor G as Gracz
+  participant CAM as MapCamera
+  participant WM as WorldMap
+  participant GS as GameState
+  participant SM as SceneManager
+  participant SH as Sheets
+  participant IS as InspectSheet
+  G->>CAM: dotyk krótszy niż 0,25 s i poniżej 12 px
+  CAM->>WM: tapped(world_pos, screen_pos)
+  WM->>WM: screen_pos.y pod paskiem HUD? jeśli nie — ignoruj
+  WM->>GS: island_at(world_to_cell(world_pos))
+  WM->>WM: IslandGenerator.contains(local, radius) — promień × 1,1
+  alt własna osada
+    WM->>GS: set_active_settlement(cell)
+    GS-->>WM: active_settlement_changed (HUD przełącza pasek)
+    WM->>SM: show_island_detail()
+    SM-->>SH: view_changed → _hide_now()
+  else cudza osada albo wyspa niczyja
+    WM->>GS: inspect(cell)
+    WM->>SH: open_inspect(cell) przez grupę sheets
+    SH->>IS: open(cell) — dane publiczne albo znalezisko
+    SH->>SH: _open() — backdrop, wysunięcie na 34% wysokości
+  end
+    </pre></div>
+  </figure>
+
+  <h3>7.2 Tap w slot budynku w osadzie</h3>
+  <figure class="diagram">
+    <div class="bar"><figcaption>IslandDetail → SlotPlaque → BuildingSheet → upgrade_requested</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+sequenceDiagram
+  actor G as Gracz
+  participant ID as IslandDetail
+  participant GEN as IslandGenerator
+  participant SP as SlotPlaque
+  participant SH as Sheets
+  participant BS as BuildingSheet
+  participant MAIN as Main
+  G->>ID: ScreenTouch pressed (drugi palec ignorowany)
+  ID->>GEN: slot_at(local) → typ budynku albo -1
+  ID->>SP: set_pressed(true) — plakietka opada o 8 px
+  opt palec zjeżdża ze slotu
+    ID->>SP: set_pressed(false), gest anulowany
+  end
+  G->>ID: puszczenie na tym samym slocie
+  ID->>SP: set_pressed(false)
+  ID->>SH: open_building(settlement, slot) przez grupę sheets
+  SH->>BS: open() — nazwa, poziom, opis, BUDUJ albo ULEPSZ
+  SH->>SH: _open() — wysunięcie na 50% wysokości
+  ID->>ID: chowa podpowiedź „Dotknij slotu…”
+  G->>BS: ULEPSZ
+  BS-->>SH: upgrade_requested(coord, building)
+  SH-->>MAIN: upgrade_requested(coord, building)
+  MAIN->>MAIN: print() — tu wejdzie wywołanie API
+  BS-->>SH: close_requested → close()
+    </pre></div>
+  </figure>
+
+  <h3>7.3 Lista flot i skok do floty na mapie</h3>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Dock → FleetsSheet → FleetCard → SceneManager.show_world_map_at</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+sequenceDiagram
+  actor G as Gracz
+  participant D as Dock
+  participant SH as Sheets
+  participant FS as FleetsSheet
+  participant FC as FleetCard
+  participant SM as SceneManager
+  participant WM as WorldMap
+  G->>D: przycisk Floty
+  D->>SH: open_fleets() przez grupę sheets
+  SH->>FS: refresh() — najpierw nadchodzące, potem własne, wg arrive_at
+  FS->>FC: instantiate + refresh(fleet, now, player_id)
+  SH->>SH: _open() — wysunięcie na 66% wysokości
+  loop co 1 s, gdy arkusz widoczny
+    FS->>FC: refresh_countdown(now)
+    opt któraś flota dotarła
+      FS->>FS: refresh() — przebudowa sekcji
+    end
+  end
+  G->>FC: tap w kartę
+  FC-->>FS: tapped(fleet)
+  FS-->>SH: fleet_tapped(fleet)
+  SH->>SH: close()
+  SH->>SM: show_world_map_at(fleet.position_at(now))
+  alt mapa już otwarta
+    SM->>WM: focus(pos) → camera.jump_to(pos)
+  else widok osady
+    SM->>SM: map_camera_state.position = pos, _swap(WorldMap)
+    SM-->>SH: view_changed → _hide_now()
+  end
+    </pre></div>
+  </figure>
+
+  <h3>7.4 Pozostałe przejścia</h3>
+  <ul class="clean">
+    <li><b>Osada → mapa</b>: Dock · Mapa → <code>SceneManager.show_world_map()</code>. WorldMap w <code>_ready</code> czyta <code>map_camera_state</code> (pozycja i zoom), a jeśli jest pusty, centruje się na osadzie aktywnej.</li>
+    <li><b>Mapa → osada</b>: plakietka OSADA → <code>SceneManager.show_island_detail()</code>. WorldMap w <code>_exit_tree</code> zapisuje pozycję i zoom kamery.</li>
+    <li><b>Zamknięcie arkusza</b>: tap w backdrop, ✕ albo ZAMKNIJ → <code>Sheets.close()</code> (fade 0,18 s + zjazd 0,26 s, potem <code>visible = false</code>).</li>
+    <li><b>Zoom mapy</b>: przyciski + / − → <code>MapCamera.zoom_by(1.25 / 0.8)</code>, pinch dwoma palcami, kółko myszy. Zakres 0,25–2,0.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="czas">
+  <h2><span class="num">8</span>Resync i pętla klatki</h2>
+  <p class="lead">Serwer przysyła stan co 60 s, a pomiędzy synchronizacjami UI interpoluje wszystko, co zależy od czasu, z <code>TimeUtil.now()</code>. Dzięki temu liczniki zasobów i floty ruszają się płynnie bez żadnych requestów.</p>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Resync co 60 s</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+sequenceDiagram
+  participant T as Timer 60 s
+  participant AC as ApiClient
+  participant P as Provider
+  participant GS as GameState
+  participant L as HUD · WorldMap · IslandDetail
+  participant F as FleetRenderer · Dock · FleetsSheet
+  T->>AC: timeout → resync()
+  AC->>P: await fetch_settlements()
+  Note right of P: MockProvider.advance(): resources += production × godziny (do capacity), lastSyncAt = now
+  P-->>AC: Array albo null
+  alt null
+    AC-->>AC: request_failed("settlements"), stop
+  end
+  AC->>GS: apply_settlements(arr)
+  GS-->>L: settlement_updated(coord) dla każdej osady
+  Note over GS: osada aktywna utracona → powrót do domowej → active_settlement_changed
+  AC->>P: await fetch_fleets()
+  AC->>GS: apply_fleets(arr) — fleets.clear() i budowa od nowa
+  GS-->>F: fleets_updated
+  AC-->>AC: synced (nikt nie słucha)
+    </pre></div>
+  </figure>
+
+  <h3>Co dzieje się w każdej klatce</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Węzeł</th><th>Metoda</th><th>Częstotliwość</th><th>Co robi</th></tr></thead>
+    <tbody>
+      <tr><td>HUD</td><td><code>_process</code></td><td>co klatkę</td><td><code>active_settlement.current_resources(TimeUtil.now())</code> → teksty kart zasobów (<code>format_thousands</code>).</td></tr>
+      <tr><td>FleetRenderer</td><td><code>_process</code> → <code>_draw</code></td><td>co klatkę (tylko na mapie)</td><td>Przerywana trasa, trójkąt w <code>position_at(now)</code>, etykieta „misja + odliczanie”. Żółte własne, czerwone nadchodzące.</td></tr>
+      <tr><td>WorldMap</td><td><code>_process</code></td><td>co klatkę / co 0,2 s</td><td>Co 0,2 s liczy chunki wokół kamery (z zapasem jednego chunka), w każdej klatce tworzy najwyżej 2 nowe chunki. Etykiety widoczne od zoomu 0,6. Przekazuje <code>visible_rect</code> do Water i odświeża panel współrzędnych.</td></tr>
+      <tr><td>Water</td><td><code>_draw</code></td><td>co klatkę (<code>queue_redraw</code> z WorldMap)</td><td>Linie siatki komórek (256 px) tylko w widocznym prostokącie.</td></tr>
+      <tr><td>MapCamera</td><td><code>_process</code></td><td>co klatkę</td><td>Inercja po puszczeniu palca, tłumienie 6/s, ograniczenie do granic świata.</td></tr>
+      <tr><td>Dock</td><td><code>_process</code></td><td>co 1 s</td><td><code>refresh_badge()</code> — liczba flot w drodze, czerwona odznaka przy nadchodzącej cudzej flocie.</td></tr>
+      <tr><td>FleetsSheet</td><td><code>_process</code></td><td>co 1 s, gdy widoczny</td><td>Odliczanie na kartach, a pełny <code>refresh()</code>, gdy któraś flota dotarła.</td></tr>
+      <tr><td>BuildingSheet</td><td><code>_process</code></td><td>tylko po <code>refresh_timer()</code></td><td>Licznik budowy. Na razie nic tego nie włącza (czeka na API).</td></tr>
+      <tr><td>SceneManager, Sheets</td><td>Tween</td><td>przy przejściu</td><td>Fade widoku 0,18 s; arkusz: backdrop 0,18 s + wysunięcie 0,26 s.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><b>Model czasu:</b> <code>TimeUtil.now() = zegar systemowy + server_time_offset</code>. Offset ustawia <code>ApiClient.load_initial()</code> z pola <code>serverTime</code> odpowiedzi <code>/world</code>. Każda funkcja zależna od czasu dostaje <code>now</code> jako argument (<code>current_resources(now)</code>, <code>position_at(now)</code>, <code>progress(now)</code>), więc testy mogą podać dowolny moment.</div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="geografia">
+  <h2><span class="num">9</span>Geografia z seeda</h2>
+  <p class="lead"><code>WorldGrid.island_at(seed, cell)</code> to czysta funkcja, wołana tysiące razy (każdy chunk ma 64 komórki) i nigdy nie cache'owana. Backend NestJS musi liczyć ją bit w bit identycznie — pilnuje tego <code>contract/world-parity.json</code>.</p>
+  <figure class="diagram">
+    <div class="bar"><figcaption>Od (seed, x, y) do wyspy na ekranie</figcaption><div class="zoomset"><button class="dbtn" data-z="-">−</button><button class="dbtn" data-z="+">+</button></div><button class="dbtn fs">⤢ Powiększ</button></div>
+    <div class="dwrap"><pre class="mermaid">
+flowchart TD
+  IN["world.seed + komórka (x, y)"] --> LAND["land = fbm(seed, x·0,12, y·0,12, 2 oktawy)<br/>szum wartościowy na hash_cell"]
+  LAND --> Q{"land > 0,30 ?"}
+  Q -->|nie| SEA["morze → null"]
+  Q -->|tak| H["h = hash_cell(seed, cell)<br/>31-bitowy hash"]
+  H --> BIO["b = fbm(seed + 1, x·0,03, y·0,03, 1)"]
+  BIO --> BQ{"b poniżej −0,15 → TROPICAL<br/>b powyżej 0,15 → VOLCANIC<br/>inaczej TEMPERATE"}
+  H --> RAD["radius = 60 + 50 · hash01(h)"]
+  BQ --> DEP["deposit: szansa 30 %<br/>1–2 zasoby SPOZA biomu, po 200–999"]
+  H --> DEP
+  BQ --> ISL["Island<br/>coord · seed_val = h · biome · radius · deposit"]
+  RAD --> ISL
+  DEP --> ISL
+  ISL --> U1["GameState.apply_settlements<br/>walidacja osady, biom osady"]
+  ISL --> U2["WorldMap._spawn_chunk<br/>IslandGenerator w chunku 8×8"]
+  ISL --> U3["WorldMap._on_tapped<br/>trafienie w wyspę"]
+  ISL --> U4["InspectSheet.open<br/>biom i znalezisko"]
+  ISL -.->|seed_val| CG["CoastlineGenerator<br/>FastNoiseLite — tylko rendering,<br/>poza kontraktem"]
+  PAR["contract/world-parity.json<br/>tools/world_parity_dump.gd"] -.->|pilnuje zgodności z backendem| LAND
+  class IN,LAND,Q,H,BIO,BQ,RAD,DEP,ISL core
+  class SEA sea
+  class U1 state
+  class U2,U3,CG view
+  class U4 ui
+  class PAR tool
+    </pre></div>
+  </figure>
+
+  <h3>Jak <code>IslandGenerator.build()</code> rysuje wyspę</h3>
+  <ol class="steps">
+    <li><code>CoastlineGenerator.generate(seed_val, radius, 48)</code> — kontur z 48 punktów na okręgu zaburzonym szumem, spłaszczony elipsą 0,8–1,2.</li>
+    <li><b>Shallow</b> (kontur × 1,18, półprzezroczysty błękit) → <b>Sand</b> (kontur) → <b>Land</b> (osobny kontur × 0,78) → <b>Crater</b> (tylko VOLCANIC) → <b>Coast</b> (Line2D po konturze). Kolory z <code>Biome.colors(biome)</code>.</li>
+    <li><b>Deposit</b> (tylko na mapie, wyspa bez osady ze znaleziskiem) — romb po przeciwnej stronie niż zatoka, w kolorze pierwszego zasobu.</li>
+    <li><b>Sloty</b> (tylko IslandDetail): ratusz w środku, stocznia w stronę zatoki (<code>bay_angle</code> = punkt konturu najbliżej środka), pozostałe cztery co 72° na okręgu 0,45 × promień. Każdy slot to <code>SlotPlaque</code> z poziomem z <code>Settlement.level()</code>.</li>
+  </ol>
+  <div class="tbl"><table>
+    <thead><tr><th>Jednostka</th><th>Wartość</th><th>Gdzie</th></tr></thead>
+    <tbody>
+      <tr><td>Komórka</td><td>256 × 256 px świata</td><td><code>WorldGrid.CELL_SIZE</code>, środek wyspy = <code>cell_to_world(cell)</code></td></tr>
+      <tr><td>Chunk</td><td>8 × 8 komórek</td><td><code>WorldGrid.CHUNK_SIZE</code>, jednostka ładowania mapy</td></tr>
+      <tr><td>Świat</td><td>domyślnie 200 × 200 komórek</td><td><code>GameWorld.size</code> z <code>/world</code>, granice kamery</td></tr>
+      <tr><td>Promień wyspy na mapie</td><td>60–110 px</td><td><code>Island.radius</code></td></tr>
+      <tr><td>Promień wyspy w osadzie</td><td>400 px</td><td><code>IslandDetail.DETAIL_RADIUS</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="pliki">
+  <h2><span class="num">10</span>Katalog plików</h2>
+  <p class="lead">Każdy plik projektu (bez <code>addons/gdUnit4</code>) z krótkim opisem roli, najważniejszym API i zależnościami. Lewa krawędź karty ma kolor warstwy z legendy.</p>
+  <div class="filter">
+    <input id="q" type="search" placeholder="Filtruj: nazwa pliku, sygnał, metoda…" aria-label="Filtruj pliki">
+    <span class="count" id="count"></span>
+  </div>
+  <div id="catalog"></div>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="luki">
+  <h2><span class="num">11</span>Otwarte końce</h2>
+  <p class="lead">Miejsca, w których przepływ się urywa albo kod czeka na kolejny etap. Nie są to błędy, ale warto je znać przy dodawaniu funkcji.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Element</th><th>Stan</th><th>Co tu wejdzie</th></tr></thead>
+    <tbody>
+      <tr><td><code>Sheets.upgrade_requested</code></td><td>Kończy się <code>print()</code> w <code>Main</code>.</td><td>Wywołanie API ulepszenia, a potem resync albo optymistyczna aktualizacja.</td></tr>
+      <tr><td><code>BuildingSheet.refresh_costs / refresh_timer</code></td><td>Gotowe i przetestowane, ale nic ich nie woła; sekcje są ukryte.</td><td>Koszty i czas budowy z API.</td></tr>
+      <tr><td><code>GameState.inspected_island_changed</code></td><td>Emitowany, bez odbiorców.</td><td>Np. podświetlenie oglądanej wyspy na mapie.</td></tr>
+      <tr><td><code>ApiClient.synced</code></td><td>Emitowany, bez odbiorców.</td><td>Np. wskaźnik „zsynchronizowano”.</td></tr>
+      <tr><td><code>ApiClient.request_failed</code></td><td>Tylko <code>push_error</code>.</td><td>Komunikat w UI, ponawianie.</td></tr>
+      <tr><td><code>HttpProvider</code></td><td>Szkielet: GET bez autoryzacji, bez ponawiania.</td><td>Integracja z NestJS (włączana przez <code>islanders/api/use_mock=false</code>).</td></tr>
+      <tr><td><code>SeaNavigation</code>, <code>GameWorld.wind</code>, <code>GameState.own_settlements()</code></td><td>Używane tylko w testach.</td><td>Wysyłanie flot: czas podróży z wiatrem, wybór osady źródłowej.</td></tr>
+      <tr><td>HUD · <code>GoldPanel</code></td><td>Placeholder pod przyszłą walutę.</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ 12 -->
+<section id="aktualizacja">
+  <h2><span class="num">12</span>Jak aktualizować ten dokument</h2>
+  <p>Plik leży w <code>docs/architecture/data-flow.html</code> i jest samowystarczalny (poza CDN: Mermaid i Google Fonts). Diagramy to tekst Mermaid w blokach <code>&lt;pre class="mermaid"&gt;</code>, a drzewo i katalog to tablice <code>TREE</code> i <code>FILES</code> w skrypcie na końcu pliku. Kolory węzłów w diagramach nadajesz liniami <code>class A,B core</code>; same klasy (<code>data</code>, <code>api</code>, <code>state</code>, <code>core</code>, <code>view</code>, <code>ui</code>, <code>tool</code>, <code>sig</code>, <code>ghost</code>) są zdefiniowane w <code>CLASSDEFS</code> osobno dla trybu jasnego i ciemnego.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Zmiana w kodzie</th><th>Co poprawić tutaj</th></tr></thead>
+    <tbody>
+      <tr><td>Nowy plik <code>.gd</code> / <code>.tscn</code></td><td>Wpis w <code>FILES</code> (sekcja 10). Jeśli to nowa warstwa albo autoload — też diagram w sekcji 2.</td></tr>
+      <tr><td>Nowy sygnał albo nowe <code>connect()</code></td><td>Pigułka i strzałki w diagramie sekcji 6 oraz wiersz w tabeli sygnałów.</td></tr>
+      <tr><td>Nowy węzeł, scena albo CanvasLayer</td><td><code>TREE</code> (sekcja 5), a przy nowej warstwie — stos warstw.</td></tr>
+      <tr><td>Nowe pole w JSON API</td><td>Diagram sekcji 3 i reguły walidacji.</td></tr>
+      <tr><td>Nowy przepływ gracza (np. wysyłanie floty)</td><td>Nowy diagram sekwencji w sekcji 7.</td></tr>
+      <tr><td>Nowy <code>_process</code> albo timer</td><td>Tabela „Co dzieje się w każdej klatce” w sekcji 8.</td></tr>
+      <tr><td>Domknięty otwarty koniec</td><td>Usuń wiersz z sekcji 11.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Zgodność z kodem sprawdza skrypt — kończy się kodem 0, gdy każdy plik <code>.gd</code>/<code>.tscn</code>, sygnał i autoload jest opisany, ścieżki istnieją, a bloki Mermaid nie zawierają pułapek:</p>
+  <div class="tbl" style="padding:.6rem .9rem"><code style="white-space:pre; background:transparent; border:0; display:block; line-height:1.7">python3 .agents/skills/updating-architecture-doc/check_doc.py</code></div>
+  <p>Całą procedurę (zakres z <code>git diff</code> od hasha z „Stan na”, co gdzie poprawić, reguły Mermaid, weryfikacja renderu) opisuje skill projektu <code>updating-architecture-doc</code> w <code>.agents/skills/</code>. Wystarczy poprosić Claude'a: „zaktualizuj dokument architektury do bieżącego stanu kodu”. Na koniec „Stan na” w nagłówku wskazuje nowy commit, a w historii poniżej jest nowy wiersz.</p>
+</section>
+
+<!-- ============================================================ 13 -->
+<section id="historia">
+  <h2><span class="num">13</span>Historia zmian dokumentu</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Data</th><th>Commit kodu</th><th>Zmiana</th></tr></thead>
+    <tbody>
+      <tr><td>2026-09-10</td><td><code>40fc5e0</code></td><td>Pierwsza wersja: warstwy, przepływ danych, start, drzewo węzłów, sygnały, interakcje, resync, geografia, katalog plików.</td></tr>
+      <tr><td>2026-09-10</td><td><code>40fc5e0</code></td><td>Czytelniejszy wygląd: font Inter, neutralne kolory o wyższym kontraście, większy tekst w diagramach, tryb ciemny.</td></tr>
+      <tr><td>2026-09-10</td><td><code>40fc5e0</code></td><td>Skill <code>updating-architecture-doc</code> i skrypt <code>check_doc.py</code> do aktualizacji dokumentu.</td></tr>
+    </tbody>
+  </table></div>
+  <footer>Islanders · dokument architektury klienta · diagramy renderuje <a href="https://mermaid.js.org">Mermaid</a> 11.17.2 z CDN.</footer>
+</section>
+
+</main>
+</div>
+
+<script>
+/* =====================================================================
+   DRZEWO WĘZŁÓW — edytuj tu, gdy zmienia się struktura scen.
+   N(nazwa, typ, opcje, dzieci)
+   opcje: s = skrypt/scena, auto = autoload, layer = CanvasLayer.layer,
+          group = grupa, dyn = tworzony w kodzie, note = opis, closed = zwinięty
+   ===================================================================== */
+const N = (n, t, o = {}, c = []) => ({ n, t, ...o, c });
+
+const SHEET_BODY = (extra) => N("SheetMargin / Body", "MarginContainer → VBoxContainer", {
+  note: "Wspólna rama arkusza (SheetStyle.apply_common): Grabber, Header z ikoną i przyciskiem ✕.",
+}, extra);
+
+const COAST_PARTS = () => [
+  N("Shallow · Sand · Land · Crater", "Polygon2D", { dyn: true, note: "Warstwy wyspy z CoastlineGenerator; Crater tylko w biomie VOLCANIC." }),
+  N("Coast", "Line2D", { dyn: true, note: "Linia brzegu po konturze." }),
+];
+
+const TREE = N("root", "Window", { note: "SceneTree.root. Autoloady są dodawane przed sceną główną, w kolejności z project.godot." }, [
+  N("GameState", "Node", { auto: true, s: "scenes/autoload/GameState.gd",
+    note: "Stan gry: world, player_id, settlements, fleets, active_settlement, inspected_coord. Emituje sygnały zmian." }),
+  N("ApiClient", "Node", { auto: true, s: "scenes/autoload/ApiClient.gd",
+    note: "Tworzy MockProvider albo HttpProvider; load_initial() i resync()." }, [
+    N("Timer", "Timer", { dyn: true, note: "wait_time = 60 s; timeout → resync(). Startuje po load_initial()." }),
+    N("HTTPRequest", "HTTPRequest", { dyn: true, note: "Tylko HttpProvider: jeden na request, queue_free po odpowiedzi." }),
+  ]),
+  N("SceneManager", "Node", { auto: true, s: "scenes/autoload/SceneManager.gd",
+    note: "Referencja do ViewContainer i bieżącego widoku; map_camera_state; tween fade." }),
+  N("Main", "Node", { s: "scenes/views/Main.tscn", note: "Scena startowa (run/main_scene). Main.gd uruchamia ładowanie." }, [
+    N("SeaBackground", "CanvasLayer", { layer: -100, note: "Tło morza pod wszystkim." }, [
+      N("Sea", "ColorRect", { note: "Kolor MedievalTheme.SEA, mouse_filter IGNORE." }),
+    ]),
+    N("ViewContainer", "Node", { note: "Zawsze dokładnie jedno dziecko: widok wstawiony przez SceneManager._swap()." }, [
+      N("WorldMap", "Node2D", { dyn: true, s: "scenes/views/WorldMap.tscn",
+        note: "Widok mapy świata. Instancjonowany przez SceneManager, zwalniany przy przejściu do osady." }, [
+        N("Water", "Node2D", { s: "scenes/views/Water.gd", note: "Siatka komórek rysowana tylko w widocznym prostokącie." }),
+        N("Chunks", "Node2D", { note: "Kontener chunków 8×8 komórek ładowanych wokół kamery." }, [
+          N("Chunk_cx_cy", "Node2D", { dyn: true, note: "Tworzony w _spawn_chunk (max 2 na klatkę), zwalniany poza zasięgiem albo po settlement_updated." }, [
+            N("Island_x:y", "Node2D · IslandGenerator", { dyn: true, s: "scenes/procedural/IslandGenerator.gd",
+              note: "show_slots = false; show_deposit, gdy wyspa nie ma osady." }, [
+              ...COAST_PARTS(),
+              N("Deposit", "Polygon2D", { dyn: true, note: "Romb znaleziska w kolorze pierwszego zasobu." }),
+            ]),
+            N("Ring_x:y", "Line2D", { dyn: true, note: "Pierścień osady: BRASS = własna, CREAM_SOFT = cudza." }),
+          ]),
+        ]),
+        N("Labels", "Node2D", { note: "Etykiety osad; widoczne od zoomu 0,6." }, [
+          N("Label ×N", "Label", { dyn: true, note: "Nazwa osady + „Ty” albo „gracz N”. Przebudowywane po settlement_updated." }),
+        ]),
+        N("Fleets", "Node2D · FleetRenderer", { s: "scenes/procedural/FleetRenderer.gd", note: "Rysuje floty w _draw() co klatkę." }),
+        N("Camera", "Camera2D · MapCamera", { s: "scenes/views/MapCamera.gd", note: "Pan, pinch, scroll, inercja; sygnał tapped." }),
+        N("UI", "CanvasLayer", { layer: 1 }, [
+          N("BackPlaque", "Button", { note: "„OSADA” → SceneManager.show_island_detail()." }),
+          N("CoordPanel / Coord", "PanelContainer → Label", { note: "„X · Y · zoom” pod paskiem HUD." }),
+          N("ZoomControls", "VBoxContainer", {}, [
+            N("ZoomIn · ZoomOut", "Button", { note: "camera.zoom_by(1.25) / zoom_by(0.8)." }),
+          ]),
+        ]),
+      ]),
+      N("IslandDetail", "Node2D", { dyn: true, s: "scenes/views/IslandDetail.tscn",
+        note: "Widok osady aktywnej — pierwszy widok po starcie. Zamiennie z WorldMap." }, [
+        N("Generator", "Node2D · IslandGenerator", { s: "scenes/procedural/IslandGenerator.gd", note: "radius = 400, show_slots = true." }, [
+          ...COAST_PARTS(),
+          N("Slot_TOWN_HALL … ×6", "Node2D · SlotPlaque", { dyn: true, s: "scenes/procedural/SlotPlaque.gd",
+            note: "4 sloty wspólne + 2 wydobywcze biomu. Plakietka rysowana w _draw()." }, [
+            N("Icon", "Control · Icon", { dyn: true, note: "Glif budynku albo „plus” dla poziomu 0." }),
+            N("Level", "Label", { dyn: true, note: "„LV n”, ukryty dla poziomu 0." }),
+          ]),
+        ]),
+        N("Camera", "Camera2D", { note: "Ustawiana w _layout(), żeby wyspa była między paskiem HUD a dockiem." }),
+        N("UI", "CanvasLayer", { layer: 1 }, [
+          N("HintPanel / Hint", "PanelContainer → Label", { note: "„Dotknij slotu, żeby otworzyć budynek”; znika po pierwszym otwarciu." }),
+        ]),
+      ]),
+    ]),
+    N("HUD", "CanvasLayer", { layer: 10, group: "hud", s: "scenes/ui/HUD.tscn",
+      note: "Pasek osady aktywnej. bar_height() i sygnał bar_height_changed dla widoków." }, [
+      N("TopBar", "PanelContainer", { note: "offset_top = górna wstawka safe area." }, [
+        N("Pad / BarRows", "MarginContainer → VBoxContainer", {}, [
+          N("ProfileRow", "HBoxContainer", {}, [
+            N("Avatar", "Control · Icon", {}),
+            N("Identity", "VBoxContainer", { note: "NameRow (SettlementName, BiomeBadge) i Subtitle „Świat w1 · (x, y)”." }),
+            N("GoldPanel", "PanelContainer", { note: "Placeholder pod przyszłą walutę." }),
+          ]),
+          N("ResourceGrid", "HBoxContainer", { note: "W landscape przenoszony do ProfileRow (_apply_orientation)." }, [
+            N("WoodCard … SulfurCard ×5", "PanelContainer", { dyn: true, note: "Icon + Amount (co klatkę) + Rate „+N/h”; przygaszona, gdy osada nie produkuje zasobu." }),
+          ]),
+          N("PopulationRow", "HBoxContainer", { note: "PopIcon, PopBar, PopLabel; czerwień od 95% limitu." }),
+        ]),
+      ]),
+    ]),
+    N("Dock", "CanvasLayer", { layer: 11, s: "scenes/ui/Dock.tscn", note: "Przyciski w dolnych rogach." }, [
+      N("Root", "Control", {}, [
+        N("FleetsButton", "Button", { note: "→ sheets.open_fleets()." }, [
+          N("Badge", "Label", { note: "Liczba flot w drodze; BLOOD, gdy nadchodzi cudza." }),
+        ]),
+        N("MapButton", "Button", { note: "→ SceneManager.show_world_map(); widoczny tylko w IslandDetail." }),
+      ]),
+    ]),
+    N("Sheets", "CanvasLayer", { layer: 12, group: "sheets", s: "scenes/ui/Sheets.tscn",
+      note: "Zarządca arkuszy: co najwyżej jeden otwarty, animacje, zamykanie przy view_changed." }, [
+      N("Backdrop", "ColorRect", { note: "Tap → close()." }),
+      N("FleetsSheet", "PanelContainer · FleetsSheet", { s: "scenes/ui/FleetsSheet.tscn", note: "66% wysokości.", closed: true }, [
+        SHEET_BODY([
+          N("Scroll / List", "ScrollContainer → VBoxContainer", {}, [
+            N("IncomingHeader", "Label", { note: "„NADCHODZĄCE · N”." }),
+            N("FleetCard ×N", "PanelContainer · FleetCard", { dyn: true, s: "scenes/ui/FleetCard.tscn", note: "Nadchodzące cudze floty." }),
+            N("OwnHeader", "Label", { note: "„W DRODZE · N”." }),
+            N("FleetCard ×N", "PanelContainer · FleetCard", { dyn: true, note: "Własne floty w drodze." }),
+            N("EmptyLabel", "Label", {}),
+          ]),
+        ]),
+      ]),
+      N("InspectSheet", "PanelContainer · InspectSheet", { s: "scenes/ui/InspectSheet.tscn", note: "34% wysokości.", closed: true }, [
+        SHEET_BODY([
+          N("Subtitle · PublicLabel", "Label", { note: "Cudza osada: współrzędne, właściciel, informacja o danych publicznych." }),
+          N("DepositHeader · DepositRow", "Label · HBoxContainer", { note: "Wyspa niczyja: chipy znaleziska (SheetStyle.resource_chip), dyn." }),
+          N("EmptyLabel", "Label", { note: "Wyspa niczyja bez znaleziska." }),
+        ]),
+      ]),
+      N("BuildingSheet", "PanelContainer · BuildingSheet", { s: "scenes/ui/BuildingSheet.tscn", note: "50% wysokości.", closed: true }, [
+        SHEET_BODY([
+          N("Description", "Label", { note: "Buildings.DESCRIPTIONS." }),
+          N("CostSection", "VBoxContainer", { note: "Ukryta do czasu refresh_costs(); 5 chipów kosztu (dyn)." }),
+          N("TimerSection", "VBoxContainer", { note: "Ukryta do czasu refresh_timer()." }),
+          N("ActionRow", "HBoxContainer", { note: "CancelButton (ZAMKNIJ), UpgradeButton (BUDUJ / ULEPSZ)." }),
+        ]),
+      ]),
+    ]),
+  ]),
+]);
+
+/* =====================================================================
+   KATALOG PLIKÓW — edytuj tu przy dodaniu, usunięciu albo zmianie roli pliku.
+   p = ścieżka, d = opis, k = najważniejsze API / sygnały, u = kto używa
+   ===================================================================== */
+const FILES = [
+  { g: "Autoloady", c: "--l-state", about: "Singletony z project.godot, dostępne globalnie po nazwie.", items: [
+    { p: "scenes/autoload/GameState.gd", d: "Jedyne źródło prawdy o stanie klienta. Waliduje osady przez WorldGrid, pilnuje, żeby osada aktywna była własna.",
+      k: "apply_world · apply_settlements · apply_fleets · finish_loading · set_active_settlement · inspect · settlement_at · island_at · own_settlements; sygnały: state_loaded, settlement_updated, fleets_updated, active_settlement_changed, inspected_island_changed",
+      u: "ApiClient (zapis); WorldMap, IslandDetail, HUD, Dock, Sheets, FleetRenderer, InspectSheet, FleetsSheet (odczyt)" },
+    { p: "scenes/autoload/ApiClient.gd", d: "Wybiera providera według ustawienia islanders/api/use_mock. Ładuje świat, osady i floty, kalibruje zegar i co 60 s robi resync.",
+      k: "load_initial() · resync() · provider; sygnały: request_failed(reason), synced", u: "Main" },
+    { p: "scenes/autoload/SceneManager.gd", d: "Przełącza widok w ViewContainer: zwalnia stary, instancjonuje nowy, robi fade 0,18 s. Pamięta pozycję i zoom kamery mapy.",
+      k: "register_container · show_world_map · show_island_detail · show_world_map_at · map_camera_state; sygnał: view_changed(path)", u: "Main, WorldMap, Dock, Sheets" },
+  ]},
+  { g: "API — providerzy", c: "--l-api", about: "Źródła danych za wspólnym interfejsem. Metody są korutynami — zawsze przez await, null oznacza błąd.", items: [
+    { p: "scripts/api/ApiProvider.gd", d: "Interfejs (klasa bazowa) źródła danych.", k: "fetch_world · fetch_settlements · fetch_fleets", u: "ApiClient" },
+    { p: "scripts/api/MockProvider.gd", d: "Czyta fixtures/*.json, dokleja serverTime, stempluje lastSyncAt, zamienia offsety minut flot na daty. advance() symuluje produkcję jak serwer.",
+      k: "load_json · advance(d, now) · clock (wstrzykiwany w testach)", u: "ApiClient (gdy use_mock = true), testy" },
+    { p: "scripts/api/HttpProvider.gd", d: "Szkielet pod NestJS: HTTPRequest dodawany jako dziecko ApiClient, GET base_url + ścieżka, parsowanie JSON.",
+      k: "GET /world · /settlements · /fleets", u: "ApiClient (gdy use_mock = false)" },
+  ]},
+  { g: "Domena — scripts/core", c: "--l-core", about: "Czyste klasy RefCounted: modele, reguły, geografia i czas. Bez węzłów, testowane jednostkowo w test/core.", items: [
+    { p: "scripts/core/WorldGrid.gd", d: "Kontrakt geografii (ADR 0001): hash komórki, szum fbm, wyspa albo morze, biom, promień, znalezisko. Konwersje komórka ↔ piksele i chunki.",
+      k: "island_at · hash_cell · fbm · cell_to_world · world_to_cell · chunk_of · in_bounds · CELL_SIZE 256 · CHUNK_SIZE 8", u: "GameState, WorldMap, Fleet, tools/world_parity_dump.gd" },
+    { p: "scripts/core/Island.gd", d: "Geografia jednej wyspy, liczona z seeda. Nigdy nie przychodzi z API.", k: "coord · seed_val · biome · radius · deposit · has_deposit()", u: "WorldGrid, GameState, WorldMap, InspectSheet, IslandDetail" },
+    { p: "scripts/core/GameWorld.gd", d: "Model odpowiedzi /world.", k: "from_json · id · seed_val · size · wind · status · player_id · home_settlement · in_bounds", u: "GameState" },
+    { p: "scripts/core/Settlement.gd", d: "Model osady. is_own = rekord ma resources. Budynki filtrowane slotami biomu. Zasoby liczone leniwie.",
+      k: "from_json(d, biome) · current_resources(now) · level(t) · produces(r)", u: "GameState, HUD, IslandGenerator, BuildingSheet, WorldMap" },
+    { p: "scripts/core/Fleet.gd", d: "Model floty w podróży oraz tabele misji, etykiet, ikon i prędkości statków.",
+      k: "from_json · progress(now) · position_at(now) · remaining_seconds(now) · is_arrived · is_own · SHIP_SPEED · MISSIONS", u: "GameState, FleetRenderer, FleetCard, FleetsSheet, Dock, Sheets" },
+    { p: "scripts/core/Biome.gd", d: "Trzy biomy: zasoby (ADR 0002), budynki wydobywcze, kolejność sześciu slotów, kolory wysp.",
+      k: "resources(b) · extraction_buildings(b) · slots(b) · colors(b) · from_key", u: "WorldGrid, Settlement, IslandGenerator, HUD, BuildingSheet, InspectSheet" },
+    { p: "scripts/core/Buildings.gd", d: "Dziewięć typów budynków: klucze, polskie nazwy, opisy, zasób wydobywany, ikona.",
+      k: "COMMON · label · key · icon · from_key · is_extraction · DESCRIPTIONS", u: "Biome, Settlement, SlotPlaque, BuildingSheet, Main" },
+    { p: "scripts/core/ResourceTypes.gd", d: "Pięć zasobów: klucze zgodne z JSON, kolory, etykiety, ikony. normalize() uzupełnia zera i odrzuca nieznane.",
+      k: "ALL · normalize · empty · COLORS · LABELS · ICONS", u: "prawie wszędzie" },
+    { p: "scripts/core/Coord.gd", d: "Współrzędne komórki: Vector2i ↔ klucz „x:y” ↔ {x, y}. NONE = (-1, -1).", k: "key · from_key · from_json · to_json · NONE", u: "GameState (klucze słownika osad), modele, widoki" },
+    { p: "scripts/core/TimeUtil.gd", d: "Jedyne miejsce, które czyta zegar systemowy (+ offset serwera). Parsowanie ISO 8601 i formatowanie liczb oraz czasu.",
+      k: "now · set_server_time · parse_iso8601 · to_iso8601 · format_thousands · format_eta · format_countdown", u: "ApiClient, MockProvider, modele, HUD, FleetRenderer, Dock, FleetsSheet, FleetCard" },
+    { p: "scripts/core/CoastlineGenerator.gd", d: "Kontur wyspy z FastNoiseLite. Czysto renderingowy — poza kontraktem geografii.", k: "generate · scaled · bay_angle · ellipse_factor", u: "IslandGenerator" },
+    { p: "scripts/core/SeaNavigation.gd", d: "Odległość, prędkość floty (najwolniejszy statek) i czas podróży z wiatrem ograniczonym do 0,5–1,5×. Na razie tylko w testach.",
+      k: "distance · fleet_speed · travel_time", u: "test/core/sea_navigation_test.gd (przyszłe wysyłanie flot)" },
+  ]},
+  { g: "Widoki — scenes/views", c: "--l-view", about: "Scena główna i dwa widoki przełączane przez SceneManager.", items: [
+    { p: "scenes/views/Main.tscn · Main.gd", d: "Scena startowa: SeaBackground, ViewContainer, HUD, Dock, Sheets. Instaluje motyw, rejestruje kontener, podpina state_loaded i uruchamia load_initial().",
+      k: "_ready() — bootstrap; loguje request_failed i upgrade_requested", u: "project.godot (run/main_scene), tools/*_probe.gd" },
+    { p: "scenes/views/WorldMap.tscn · WorldMap.gd", d: "Mapa świata: chunki ładowane wokół kamery, pierścienie i etykiety osad, floty, UI mapy. Tap w wyspę aktywuje własną osadę albo otwiera InspectSheet.",
+      k: "focus(pos) · _refresh_chunks · _spawn_chunk · _on_tapped · _rebuild_labels · _layout_ui", u: "SceneManager" },
+    { p: "scenes/views/IslandDetail.tscn · IslandDetail.gd", d: "Osada aktywna w zbliżeniu ze slotami budynków. Tap w slot otwiera BuildingSheet. Obsługuje tylko jeden palec naraz.",
+      k: "_refresh · _layout · _unhandled_input · _slot_under · _open_building", u: "SceneManager" },
+    { p: "scenes/views/MapCamera.gd", d: "Camera2D mapy: pan jednym palcem, pinch, kółko myszy, inercja, granice świata, rozpoznawanie tapnięcia.",
+      k: "tapped(world_pos, screen_pos) · set_bounds · visible_world_rect · jump_to · zoom_by · ZOOM 0,25–2,0", u: "WorldMap" },
+    { p: "scenes/views/Water.gd", d: "Rysuje linie siatki komórek w widocznym prostokącie, kolor = SEA przyciemnione o 18%.", k: "visible_rect · _draw", u: "WorldMap" },
+  ]},
+  { g: "Rysowanie proceduralne — scenes/procedural", c: "--l-view", about: "Węzły, które budują grafikę z danych, bez tekstur.", items: [
+    { p: "scenes/procedural/IslandGenerator.gd", d: "@tool. Buduje wyspę z Polygon2D i Line2D na podstawie (seed_val, radius, biome); opcjonalnie znacznik znaleziska i sloty SlotPlaque.",
+      k: "build · clear · slot_at · set_pressed · contains (static) · TAP_RADIUS_FACTOR 1,1", u: "WorldMap (w chunkach), IslandDetail" },
+    { p: "scenes/procedural/SlotPlaque.gd", d: "Plakietka slotu: pergamin, dębowa krawędź, cień; poziom 0 = przerywana ramka i plus. Wciśnięcie przesuwa ją o 8 px.",
+      k: "setup(type, level) · pressed · contains · press_offset", u: "IslandGenerator" },
+    { p: "scenes/procedural/FleetRenderer.gd", d: "Rysuje wszystkie floty w drodze: trasa, trójkąt w bieżącej pozycji, misja i odliczanie.", k: "refresh · _draw", u: "WorldMap" },
+  ]},
+  { g: "Chrome UI — scenes/ui", c: "--l-ui", about: "Stałe elementy nad widokami oraz wspólne klocki stylu.", items: [
+    { p: "scenes/ui/HUD.tscn · HUD.gd", d: "Górny pasek osady aktywnej: nazwa, biom, świat i współrzędne, pięć kart zasobów liczonych co klatkę, populacja. Układ portret/landscape.",
+      k: "bar_height() · bar_height_changed · icon_of / amount_of / rate_of · grupa „hud”", u: "Main; WorldMap i IslandDetail (bar_height)" },
+    { p: "scenes/ui/Dock.tscn · Dock.gd", d: "Przycisk Floty z odznaką (czerwoną przy nadchodzącej cudzej flocie) i przycisk Mapa widoczny tylko w osadzie.",
+      k: "refresh_badge · is_alarmed · _sync_visibility", u: "Main" },
+    { p: "scenes/ui/Sheets.tscn · Sheets.gd", d: "Zarządca arkuszy od dołu: backdrop, jeden otwarty arkusz, animacje, zamknięcie przy zmianie widoku. Przekazuje upgrade_requested, obsługuje skok do floty.",
+      k: "open_fleets · open_inspect(coord) · open_building(settlement, type) · close · is_open · upgrade_requested · grupa „sheets”", u: "Main, WorldMap, IslandDetail, Dock" },
+    { p: "scenes/ui/BuildingSheet.tscn · BuildingSheet.gd", d: "Arkusz budynku: ikona, nazwa, poziom, opis, ZAMKNIJ / BUDUJ / ULEPSZ. Sekcje kosztu i licznika czekają na API.",
+      k: "open · refresh_costs · refresh_timer · upgrade_requested · close_requested", u: "Sheets" },
+    { p: "scenes/ui/InspectSheet.tscn · InspectSheet.gd", d: "Arkusz oglądanej wyspy: cudza osada (dane publiczne) albo wyspa niczyja (znalezisko).", k: "open(coord) · close_requested", u: "Sheets" },
+    { p: "scenes/ui/FleetsSheet.tscn · FleetsSheet.gd", d: "Lista flot w drodze: nadchodzące cudze na górze, własne niżej, posortowane po czasie przybycia. Tik co 1 s.",
+      k: "refresh · cards · fleet_tapped · close_requested", u: "Sheets" },
+    { p: "scenes/ui/FleetCard.tscn · FleetCard.gd", d: "Karta floty: misja i cel, ETA, pasek postępu, skład (dla cudzej floty ukryty). Krawędź w kolorze misji.",
+      k: "refresh(f, now, player_id) · refresh_countdown · tapped(fleet)", u: "FleetsSheet" },
+    { p: "scenes/ui/MedievalTheme.gd", d: "Motyw „Chart & Timber”: paleta, fonty Cinzel/Spectral, px() skalujące wymiary z projektu 390 px do 1080 px, Theme z wariacjami. install() scala go z motywem silnika.",
+      k: "px · flat · plaque · build · install · stałe kolorów", u: "wszystkie węzły UI i rysujące" },
+    { p: "scenes/ui/Icon.gd", d: "Kontrolka rysująca glify w _draw() na siatce 24×24 — bez tekstur i emoji. 23 rodzaje.", k: "kind · color · into_button · is_known", u: "HUD, Dock, arkusze, SlotPlaque, WorldMap" },
+    { p: "scenes/ui/SheetStyle.gd", d: "Wspólny wygląd arkuszy (margines, uchwyt, nagłówek, przycisk ✕) i konstruktor chipa zasobu.", k: "apply_common · resource_chip · chip_amount", u: "BuildingSheet, InspectSheet, FleetsSheet" },
+    { p: "scenes/ui/SafeArea.gd", d: "Wstawki notcha/paska systemowego przeliczone na piksele canvasu.", k: "top_inset · bottom_inset · insets_for (czysta, testowalna)", u: "HUD, Dock, WorldMap, IslandDetail" },
+    { p: "ui/fonts/*", d: "Cinzel (nagłówki) i Spectral (tekst) na licencji OFL.", k: "", u: "MedievalTheme" },
+  ]},
+  { g: "Dane, kontrakt i konfiguracja", c: "--l-data", about: "Dane testowe dla MockProvider, kontrakt z backendem i ustawienia projektu.", items: [
+    { p: "fixtures/world.json", d: "Świat w1: seed 1337, 200×200, wiatr (0.3, −0.1), gracz 7, osada domowa (80, 73).", k: "", u: "MockProvider" },
+    { p: "fixtures/settlements.json", d: "Koralowa (80, 73) i Popielna (87, 72) gracza 7 z pełnymi danymi; Szara Skała (81, 73) gracza 9 — tylko dane publiczne.", k: "", u: "MockProvider" },
+    { p: "fixtures/fleets.json", d: "f1 EXPEDITION i f2 RETURN gracza 7, f3 ATTACK gracza 9 nadchodząca na Koralową. Czasy jako departOffsetMin / arriveOffsetMin.", k: "", u: "MockProvider" },
+    { p: "contract/world-parity.json · README.md", d: "Zrzut geografii WorldGrid dla kilku seedów z pełną precyzją IEEE 754. Backend porównuje go komórka po komórce. Zmiana pliku = zmiana geografii świata.", k: "./run_parity.sh", u: "backend NestJS (test parity)" },
+    { p: "project.godot", d: "Scena startowa, autoloady (GameState, ApiClient, SceneManager), viewport 1080×1920, orientacja, islanders/api/use_mock i base_url, gdUnit4.", k: "", u: "silnik" },
+  ]},
+  { g: "Narzędzia i testy", c: "--l-tool", about: "Uruchamiane headless z terminala; GODOT można nadpisać zmienną środowiskową.", items: [
+    { p: "run_tests.sh · test/", d: "Testy gdUnit4: test/core (modele i reguły), test/api (MockProvider), test/state (GameState), test/scenes (widoki i UI), smoke_test.gd. FixtureCells.gd — pomocnik z komórkami z fixtures.", k: "./run_tests.sh [ścieżka]", u: "developer, CI" },
+    { p: "run_smoke.sh · tools/Smoke.tscn · tools/smoke_probe.gd", d: "Headless smoke test całej gry: start w osadzie → mapa przez dock → arkusze inspekcji, budynku i flot → powrót do osady. Symuluje prawdziwe zdarzenia wejścia.", k: "./run_smoke.sh (kod 0 = OK)", u: "developer" },
+    { p: "tools/Capture.tscn · tools/capture_probe.gd", d: "Sonda wizualna: zapisuje viewport 1:1 do PNG i mierzy geometrię paska. Nie testuje, dostarcza zrzuty do oceny.", k: "Godot --path . --resolution 1080x1920 res://tools/Capture.tscn -- katalog", u: "developer" },
+    { p: "run_parity.sh · tools/world_parity_dump.gd", d: "Generuje contract/world-parity.json i dowodzi arytmetyką całkowitoliczbową, że zapis każdej liczby jest odwracalny.", k: "./run_parity.sh", u: "developer" },
+    { p: "addons/gdUnit4/", d: "Framework testów (zewnętrzny, nie edytować).", k: "", u: "run_tests.sh" },
+  ]},
+  { g: "Dokumentacja", c: "--l-doc", about: "Decyzje, słownik i plany — czytaj przed zmianą reguł domeny.", items: [
+    { p: "CONTEXT.md", d: "Słownik domeny (PL): World, Island, Settlement, Fleet, Mission, Active Settlement, Inspected Island, Public Data… z listą słów, których unikać.", k: "", u: "wszyscy" },
+    { p: "docs/adr/0001-deterministic-world-geography.md", d: "Geografia z seeda, wyspa identyfikowana przez (x, y); dokładny opis algorytmu do odtworzenia w backendzie.", k: "", u: "WorldGrid, backend" },
+    { p: "docs/adr/0002-biome-exclusive-resources.md", d: "Każdy biom produkuje dokładnie dwa zasoby; znaleziska zawierają zasoby spoza biomu.", k: "", u: "Biome, WorldGrid" },
+    { p: "docs/superpowers/specs · plans", d: "Specyfikacje i plany etapów: szkielet klienta, UI v2, poprawki UI v2.", k: "", u: "planowanie" },
+    { p: "docs/architecture/data-flow.html", d: "Ten dokument.", k: "", u: "wszyscy" },
+  ]},
+];
+
+/* ============================== render drzewa ============================== */
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const N2D = /Node2D|Polygon2D|Line2D|Camera2D/;
+const CTL = /Control|Label|Button|Container|ColorRect|ProgressBar|Panel/;
+function family(t) {
+  if (t === "Window") return "win";
+  if (N2D.test(t)) return "n2d";
+  if (CTL.test(t)) return "ctl";
+  return "nd";
+}
+function renderNode(node) {
+  const li = document.createElement("li");
+  const has = node.c && node.c.length > 0;
+  if (node.closed) li.classList.add("closed");
+  const tags = [];
+  if (node.auto) tags.push('<span class="tag auto">autoload</span>');
+  if (node.layer !== undefined) tags.push(`<span class="tag lyr">layer ${node.layer}</span>`);
+  if (node.group) tags.push(`<span class="tag grp">group "${esc(node.group)}"</span>`);
+  if (node.dyn) tags.push('<span class="tag dyn">dyn</span>');
+  const row = document.createElement("div");
+  row.className = "tn" + (has ? " has" : "");
+  row.innerHTML =
+    `<span class="caret">${has ? (node.closed ? "▸" : "▾") : ""}</span>` +
+    `<span class="dot ${family(node.t)}"></span><b>${esc(node.n)}</b>` +
+    `<span class="ty">${esc(node.t)}</span>${tags.join("")}` +
+    (node.s ? `<code>${esc(node.s)}</code>` : "") +
+    (node.note ? `<span class="note">${esc(node.note)}</span>` : "");
+  li.appendChild(row);
+  if (has) {
+    const ul = document.createElement("ul");
+    node.c.forEach(ch => ul.appendChild(renderNode(ch)));
+    li.appendChild(ul);
+    row.addEventListener("click", () => setOpen(li, li.classList.contains("closed")));
+  }
+  return li;
+}
+function setOpen(li, open) {
+  li.classList.toggle("closed", !open);
+  const caret = li.querySelector(":scope > .tn .caret");
+  if (caret) caret.textContent = open ? "▾" : "▸";
+}
+(function () {
+  const ul = document.createElement("ul");
+  ul.appendChild(renderNode(TREE));
+  document.getElementById("tree").appendChild(ul);
+  const all = () => document.querySelectorAll("#tree li:has(> ul)");
+  document.getElementById("expandAll").onclick = () => all().forEach(li => setOpen(li, true));
+  document.getElementById("collapseAll").onclick = () => all().forEach((li, i) => setOpen(li, i < 2));
+})();
+
+/* ============================== render katalogu ============================== */
+(function () {
+  const root = document.getElementById("catalog");
+  const q = document.getElementById("q");
+  const count = document.getElementById("count");
+  const total = FILES.reduce((n, g) => n + g.items.length, 0);
+  function draw() {
+    const term = q.value.trim().toLowerCase();
+    let shown = 0;
+    root.innerHTML = "";
+    for (const g of FILES) {
+      const items = g.items.filter(f => !term || [f.p, f.d, f.k, f.u].join(" ").toLowerCase().includes(term));
+      if (!items.length) continue;
+      shown += items.length;
+      const sec = document.createElement("div");
+      sec.className = "group";
+      sec.innerHTML = `<h3><i style="background:var(${g.c})"></i>${esc(g.g)}</h3><p>${esc(g.about)}</p>`;
+      const grid = document.createElement("div");
+      grid.className = "files";
+      for (const f of items) {
+        const el = document.createElement("div");
+        el.className = "file";
+        el.style.setProperty("--c", `var(${g.c})`);
+        el.innerHTML = `<div class="p">${esc(f.p)}</div><p class="d">${esc(f.d)}</p>` +
+          (f.k ? `<div class="k"><b>API:</b> ${esc(f.k)}</div>` : "") +
+          (f.u ? `<div class="k"><b>Używa:</b> ${esc(f.u)}</div>` : "");
+        grid.appendChild(el);
+      }
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    }
+    count.textContent = term ? `${shown} z ${total} wpisów` : `${total} wpisów`;
+  }
+  q.addEventListener("input", draw);
+  draw();
+})();
+
+/* ============================== spis treści ============================== */
+(function () {
+  const links = [...document.querySelectorAll("nav.toc a")];
+  const byId = Object.fromEntries(links.map(a => [a.getAttribute("href").slice(1), a]));
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(a => a.classList.remove("active"));
+        byId[e.target.id]?.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("main section[id]").forEach(s => obs.observe(s));
+})();
+
+/* ============================== motyw ============================== */
+const root = document.documentElement;
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+const effectiveTheme = () => root.dataset.theme || (darkQuery.matches ? "dark" : "light");
+const themeBtn = document.getElementById("themeBtn");
+const syncThemeBtn = () => { themeBtn.textContent = effectiveTheme() === "dark" ? "☀ Tryb jasny" : "☾ Tryb ciemny"; };
+syncThemeBtn();
+
+/* ============================== diagramy ==============================
+   CLASSDEFS: kolory klas węzłów doklejane do każdego flowchartu, osobno dla motywu.
+   ====================================================================== */
+const CLASSDEFS = {
+  light: {
+    data:  "fill:#e4f1f3,stroke:#2f7480,color:#12363c",
+    api:   "fill:#e6edf8,stroke:#3f68b0,color:#1a2f55",
+    state: "fill:#faefd6,stroke:#a8740f,color:#3d2a05",
+    core:  "fill:#e8f1e1,stroke:#4c7f2e,color:#1f3510",
+    view:  "fill:#f8e8dc,stroke:#b0602a,color:#45220a",
+    ui:    "fill:#f3e6f3,stroke:#8a4b8a,color:#3a1c3a",
+    tool:  "fill:#ececea,stroke:#6b6b6b,color:#262626",
+    sig:   "fill:#ffffff,stroke:#6b6a66,color:#1d1d1b,font-family:JetBrains Mono,font-size:14px",
+    ghost: "fill:#fbeeed,stroke:#a3302a,stroke-dasharray:4 3,color:#a3302a",
+  },
+  dark: {
+    data:  "fill:#1c3337,stroke:#5fb3bf,color:#dff1f3",
+    api:   "fill:#1f2a40,stroke:#86a6e8,color:#e2eaff",
+    state: "fill:#3a2e14,stroke:#e0aa45,color:#fbeccc",
+    core:  "fill:#223420,stroke:#8cc06a,color:#e3f2d8",
+    view:  "fill:#3a2618,stroke:#e39460,color:#fbe4d4",
+    ui:    "fill:#33223a,stroke:#c890c8,color:#f5e2f5",
+    tool:  "fill:#2a2d30,stroke:#9d9d9d,color:#e6e6e3",
+    sig:   "fill:#1d2024,stroke:#9aa0a6,color:#e6e6e3,font-family:JetBrains Mono,font-size:14px",
+    ghost: "fill:#3a1f1d,stroke:#f08d84,stroke-dasharray:4 3,color:#f08d84",
+  },
+};
+const THEME_VARS = {
+  light: {
+    primaryColor: "#ffffff", primaryBorderColor: "#8d8c86", primaryTextColor: "#1d1d1b",
+    lineColor: "#6b6a66", secondaryColor: "#f0f0ec", tertiaryColor: "#f6f6f4",
+    clusterBkg: "#f7f7f4", clusterBorder: "#d9d8d2", titleColor: "#4b4a46", edgeLabelBackground: "#ffffff",
+    actorBkg: "#e4f1f3", actorBorder: "#2f7480", actorTextColor: "#12363c", actorLineColor: "#b9b8b2",
+    signalColor: "#1d1d1b", signalTextColor: "#1d1d1b",
+    labelBoxBkgColor: "#f0f0ec", labelBoxBorderColor: "#8d8c86", labelTextColor: "#1d1d1b", loopTextColor: "#4b4a46",
+    noteBkgColor: "#fff5d6", noteBorderColor: "#c79a2e", noteTextColor: "#1d1d1b", activationBkgColor: "#f0f0ec",
+  },
+  dark: {
+    darkMode: true,
+    primaryColor: "#1d2024", primaryBorderColor: "#6f767d", primaryTextColor: "#e6e6e3",
+    lineColor: "#a7abae", secondaryColor: "#252a2f", tertiaryColor: "#15171a",
+    clusterBkg: "#191c1f", clusterBorder: "#363c43", titleColor: "#b4b7b9", edgeLabelBackground: "#1d2024",
+    actorBkg: "#1c3337", actorBorder: "#5fb3bf", actorTextColor: "#e6f4f6", actorLineColor: "#4a5057",
+    signalColor: "#e6e6e3", signalTextColor: "#e6e6e3",
+    labelBoxBkgColor: "#252a2f", labelBoxBorderColor: "#6f767d", labelTextColor: "#e6e6e3", loopTextColor: "#b4b7b9",
+    noteBkgColor: "#3a3320", noteBorderColor: "#c79a2e", noteTextColor: "#f0ead6", activationBkgColor: "#252a2f",
+  },
+};
+// Poza pełnym ekranem diagram nie kurczy się poniżej tej części naturalnej szerokości —
+// wtedy pojawia się przewijanie w poziomie zamiast drobnego, męczącego tekstu.
+const MIN_INLINE = 0.75;
+
+(function () {
+  const decode = html => { const t = document.createElement("textarea"); t.innerHTML = html; return t.value; };
+  const diagrams = [...document.querySelectorAll("figure.diagram")].map((fig, i) => {
+    const pre = fig.querySelector("pre.mermaid");
+    const out = document.createElement("div");
+    out.className = "mm";
+    pre.after(out);
+    return { fig, out, src: decode(pre.innerHTML).trim(), id: `diagram${i}`, natural: 0, scale: 1 };
+  });
+
+  const applySize = d => {
+    const svg = d.out.querySelector("svg");
+    if (!svg) return;
+    const fs = d.fig.classList.contains("fullscreen");
+    svg.style.width = fs ? `${d.natural * d.scale}px` : "";
+    svg.style.minWidth = fs ? "" : `${Math.round(d.natural * MIN_INLINE)}px`;
+  };
+
+  let renderRun = 0;
+  async function renderAll(theme) {
+    if (!window.mermaid) {
+      diagrams.forEach(d => { d.out.innerHTML = '<p class="err">Nie udało się pobrać Mermaid z CDN (brak internetu?). Źródło diagramu jest w pliku HTML.</p>'; });
+      return;
+    }
+    const run = ++renderRun;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      securityLevel: "loose",
+      flowchart: { curve: "basis", htmlLabels: true, padding: 14, nodeSpacing: 40, rankSpacing: 52 },
+      sequence: { mirrorActors: false, messageAlign: "center", actorMargin: 50, boxMargin: 8, noteMargin: 10,
+                  wrap: false, actorFontSize: 15, messageFontSize: 15, noteFontSize: 14 },
+      themeVariables: { fontFamily: "Inter, system-ui, sans-serif", fontSize: "16px", ...THEME_VARS[theme] },
+    });
+    const defs = Object.entries(CLASSDEFS[theme]).map(([k, v]) => `  classDef ${k} ${v}`).join("\n");
+    for (const d of diagrams) {
+      const src = d.src.startsWith("flowchart") ? `${d.src}\n${defs}` : d.src;
+      try {
+        const { svg } = await mermaid.render(`${d.id}-${run}`, src);
+        if (run !== renderRun) return;   // w międzyczasie przełączono motyw
+        d.out.innerHTML = svg;
+        const el = d.out.querySelector("svg");
+        d.natural = parseFloat(el.style.maxWidth) || el.getBoundingClientRect().width;
+        applySize(d);
+      } catch (e) {
+        d.out.innerHTML = `<p class="err">Błąd w diagramie: ${esc(e.message || e)}</p>`;
+      }
+    }
+  }
+
+  // Powiększanie: pełny ekran + skala względem naturalnej szerokości SVG.
+  diagrams.forEach(d => {
+    const fsBtn = d.fig.querySelector(".fs");
+    const toggle = on => {
+      d.fig.classList.toggle("fullscreen", on);
+      fsBtn.textContent = on ? "✕ Zamknij (Esc)" : "⤢ Powiększ";
+      document.body.style.overflow = on ? "hidden" : "";
+      d.scale = 1;
+      applySize(d);
+    };
+    fsBtn.addEventListener("click", () => toggle(!d.fig.classList.contains("fullscreen")));
+    d.fig.querySelectorAll("[data-z]").forEach(b => b.addEventListener("click", () => {
+      d.scale = Math.min(4, Math.max(0.3, d.scale * (b.dataset.z === "+" ? 1.25 : 0.8)));
+      applySize(d);
+    }));
+    d.close = () => toggle(false);
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") diagrams.filter(d => d.fig.classList.contains("fullscreen")).forEach(d => d.close());
+  });
+
+  themeBtn.addEventListener("click", () => {
+    const next = effectiveTheme() === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch (e) {}
+    syncThemeBtn();
+    renderAll(next);
+  });
+  darkQuery.addEventListener("change", () => {
+    if (root.dataset.theme) return;   // jawny wybór użytkownika wygrywa z ustawieniem systemu
+    syncThemeBtn();
+    renderAll(effectiveTheme());
+  });
+
+  (async () => {
+    try { await document.fonts.ready; } catch (e) {}
+    renderAll(effectiveTheme());
+  })();
+})();
+</script>
+</body>
+</html>
