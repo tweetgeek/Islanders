@@ -49,10 +49,13 @@ static func from_json(d: Dictionary, biome_type: Biome.Type) -> Settlement:
 	return s
 
 
-## ownerName z JSON osady albo floty; brak albo pusty daje UNKNOWN_OWNER.
+## ownerName z JSON osady albo floty; przyjmujemy wyłącznie niepusty String (nie liczbę,
+## nie null, nie sam biały znak) - inaczej `str()` wypisałby "<null>", "42.0" albo pustkę.
 static func parse_owner_name(d: Dictionary) -> String:
-	var raw := str(d.get("ownerName", ""))
-	return UNKNOWN_OWNER if raw.is_empty() else raw
+	var raw: Variant = d.get("ownerName")
+	if raw is String and not raw.strip_edges().is_empty():
+		return raw
+	return UNKNOWN_OWNER
 
 
 ## Serwer podaje produkcję wprost (klient jej nie wylicza), więc niezgodną wartość tylko

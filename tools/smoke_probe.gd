@@ -322,7 +322,7 @@ func _process(_delta: float) -> void:
 			_check(get_node("Main/HUD").settlement_name.text == "Koralowa", "HUD po resyncu")
 			_tap_control(_map().back_plaque)
 		elif _frame == _gate + 24:
-			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "plakietka OSADA wraca do osady")
+			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "przycisk powrotu wraca do osady")
 			print("SMOKE %s" % ("FAILED" if _failed else "PASSED"))
 			get_tree().quit(1 if _failed else 0)
 	elif _frame > 60000:

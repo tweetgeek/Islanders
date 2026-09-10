@@ -352,7 +352,7 @@ func test_coord_panel_follows_camera() -> void:
 	assert_str(world_map.coord_label.text).is_equal("X %d · Y %d · zoom 1.0" % [HOME_CELL.x, HOME_CELL.y])
 
 
-## Regresja: HUD przy size_changed przepina ResourceGrid między BarRows a ProfileRow, a
+## Regresja: HUD przy size_changed przepina ResourceGrid między BarRows a IdentityRow, a
 ## przesortowanie kontenera jest odroczone do fazy layoutu. Widok podpięty do tego samego
 ## size_changed odczytuje więc bar_height() sprzed przepięcia i zostaje z nim na zawsze -
 ## chrome mapy wisi o cały rząd kart za nisko (albo za wysoko) aż do kolejnego obrotu.
@@ -399,13 +399,14 @@ func test_tap_inside_hud_bar_does_not_open_inspect_sheet() -> void:
 	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
 
 
-## Ta sama martwa strefa od drugiej strony: tap w pasek nad własną wyspą nie może przestawić
-## osady aktywnej ani przerzucić gracza do widoku osady.
-func test_tap_inside_hud_bar_does_not_enter_own_settlement() -> void:
+## Ta sama martwa strefa od drugiej strony: tap w pasek nad własną wyspą nie może otworzyć
+## arkusza oglądu (a więc też nie może przestawić osady aktywnej ani przerzucić gracza do
+## widoku osady - to wciąż wynikałoby z otwarcia arkusza).
+func test_tap_inside_hud_bar_does_not_inspect_own_settlement() -> void:
 	_apply_world()
 	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa")])
 	var hud := _hud()
-	var _sheets_layer := _sheets()
+	var sheets := _sheets()
 	var world_map := _spawn_map(START_POS)
 	await _resize_window(PORTRAIT_WINDOW)
 	var camera: MapCamera = world_map.camera
@@ -416,8 +417,17 @@ func test_tap_inside_hud_bar_does_not_enter_own_settlement() -> void:
 	_aim(camera, bar_point, HOME_CELL)
 	_tap(camera, bar_point)
 	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_false()
 	assert_object(GameState.active_settlement).is_null()
 	assert_str(SceneManager.current_view).is_equal(view_before)
+
+	# Kontrola: ten sam tap poniżej paska nadal otwiera arkusz oglądu własnej osady.
+	var below := vis / 2.0
+	_aim(camera, below, HOME_CELL)
+	_tap(camera, below)
+	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_true()
+	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
 
 
 func test_map_ui_margins_are_gaps() -> void:

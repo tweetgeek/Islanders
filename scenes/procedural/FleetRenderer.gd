@@ -3,7 +3,8 @@ extends Node2D
 
 const OWN_COLOR := Color(1.0, 0.85, 0.2)
 const INCOMING_COLOR := Color(0.95, 0.25, 0.2)
-## × 1,75 wobec komórki 256, żeby trasa i znacznik nie zmalały wobec odległości.
+## Około × 1,75 wobec komórki 256 (DASH dokładnie, TRIANGLE ≈ × 1,71), żeby trasa i znacznik
+## nie zmalały wobec odległości.
 const DASH := 42.0
 const TRIANGLE := 24.0
 const FONT_SIZE := 16

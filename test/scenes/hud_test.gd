@@ -30,7 +30,7 @@ func _hud() -> CanvasLayer:
 	return hud
 
 
-func test_profile_row_shows_active_settlement() -> void:
+func test_identity_row_shows_active_settlement() -> void:
 	var hud := _hud()
 	assert_str(hud.settlement_name.text).is_equal("Koralowa")
 	assert_str(hud.biome_badge.text).is_equal("TROPICAL")

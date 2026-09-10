@@ -92,3 +92,21 @@ func test_missing_or_empty_owner_name_is_unknown_player() -> void:
 	var empty := Settlement.from_json({"x": 1, "y": 2, "ownerId": 9, "ownerName": "", "name": "Obca"}, Biome.Type.VOLCANIC)
 	assert_str(missing.owner_name).is_equal(Settlement.UNKNOWN_OWNER)
 	assert_str(empty.owner_name).is_equal(Settlement.UNKNOWN_OWNER)
+
+
+## `ownerName: null` nie może wyświetlać się jako tekst "<null>".
+func test_null_owner_name_is_unknown_player() -> void:
+	var s := Settlement.from_json({"x": 1, "y": 2, "ownerId": 9, "ownerName": null, "name": "Obca"}, Biome.Type.VOLCANIC)
+	assert_str(s.owner_name).is_equal(Settlement.UNKNOWN_OWNER)
+
+
+## `ownerName` liczbowy nie może wyświetlać się jako "42.0" - pseudonim to zawsze String.
+func test_numeric_owner_name_is_unknown_player() -> void:
+	var s := Settlement.from_json({"x": 1, "y": 2, "ownerId": 9, "ownerName": 42, "name": "Obca"}, Biome.Type.VOLCANIC)
+	assert_str(s.owner_name).is_equal(Settlement.UNKNOWN_OWNER)
+
+
+## Sam biały znak nie jest pseudonimem - inaczej etykieta na mapie byłaby pustym miejscem.
+func test_whitespace_only_owner_name_is_unknown_player() -> void:
+	var s := Settlement.from_json({"x": 1, "y": 2, "ownerId": 9, "ownerName": "   ", "name": "Obca"}, Biome.Type.VOLCANIC)
+	assert_str(s.owner_name).is_equal(Settlement.UNKNOWN_OWNER)
