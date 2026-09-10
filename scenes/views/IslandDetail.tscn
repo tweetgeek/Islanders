@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scenes/views/IslandDetail.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/procedural/IslandGenerator.gd" id="2"]
+[ext_resource type="Script" path="res://scenes/ui/Icon.gd" id="3"]
 
 [node name="IslandDetail" type="Node2D"]
 script = ExtResource("1")
@@ -15,14 +16,45 @@ current = true
 [node name="UI" type="CanvasLayer" parent="."]
 layer = 1
 
-[node name="HintPanel" type="PanelContainer" parent="UI"]
+[node name="StatusRow" type="HBoxContainer" parent="UI"]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 grow_vertical = 0
 mouse_filter = 2
+
+[node name="PopPanel" type="PanelContainer" parent="UI/StatusRow"]
+layout_mode = 2
+mouse_filter = 2
 theme_type_variation = &"Plaque"
 
-[node name="Hint" type="Label" parent="UI/HintPanel"]
+[node name="HBox" type="HBoxContainer" parent="UI/StatusRow/PopPanel"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PopIcon" type="Control" parent="UI/StatusRow/PopPanel/HBox"]
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3")
+kind = &"people"
+
+[node name="PopBar" type="ProgressBar" parent="UI/StatusRow/PopPanel/HBox"]
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+max_value = 1.0
+show_percentage = false
+
+[node name="PopLabel" type="Label" parent="UI/StatusRow/PopPanel/HBox"]
+layout_mode = 2
+text = "0 / 0"
+theme_type_variation = &"Amount"
+
+[node name="HintPanel" type="PanelContainer" parent="UI/StatusRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"Plaque"
+
+[node name="Hint" type="Label" parent="UI/StatusRow/HintPanel"]
 layout_mode = 2
 text = "Dotknij slotu, żeby otworzyć budynek"

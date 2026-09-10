@@ -24,7 +24,7 @@ var _accum := 0.0
 
 func _ready() -> void:
 	SheetStyle.apply_common(self, grabber, fleet_icon, close_button, close_requested, 40.0)
-	list.add_theme_constant_override("separation", MedievalTheme.px(10))
+	list.add_theme_constant_override("separation", MedievalTheme.gap(10))
 	GameState.fleets_updated.connect(_on_fleets_updated)
 
 

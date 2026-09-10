@@ -63,7 +63,7 @@ theme_type_variation = &"Caption"
 
 [node name="PublicLabel" type="Label" parent="SheetMargin/Body"]
 layout_mode = 2
-text = "Dane publiczne: nazwa i właściciel."
+text = "Dane publiczne: nazwa i pseudonim właściciela."
 autowrap_mode = 3
 
 [node name="DepositHeader" type="Label" parent="SheetMargin/Body"]
@@ -78,3 +78,9 @@ mouse_filter = 2
 [node name="EmptyLabel" type="Label" parent="SheetMargin/Body"]
 layout_mode = 2
 text = "Brak znaleziska."
+
+[node name="ActionButton" type="Button" parent="SheetMargin/Body"]
+visible = false
+layout_mode = 2
+text = "PRZEJDŹ DO OSADY"
+theme_type_variation = &"Primary"

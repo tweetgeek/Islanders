@@ -30,7 +30,7 @@ func refresh(f: Fleet, now: float, player_id: int) -> void:
 	var label: String = Fleet.MISSION_LABELS.get(f.mission, f.mission)
 	title.text = "%s → (%d, %d)" % [label, f.to.x, f.to.y]
 	refresh_countdown(now)
-	composition.text = _composition(f) if f.is_own(player_id) else "gracz %d · szczegóły niewidoczne" % f.owner_id
+	composition.text = _composition(f) if f.is_own(player_id) else "%s · szczegóły niewidoczne" % f.owner_name
 	mission_icon.kind = Fleet.MISSION_ICONS.get(f.mission, &"fleet")
 	var accent := MedievalTheme.BRASS
 	var bar_variation := &""

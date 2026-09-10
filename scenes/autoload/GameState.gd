@@ -102,6 +102,12 @@ func island_at(coord: Vector2i) -> Island:
 	return WorldGrid.island_at(world.seed_val, coord)
 
 
+## Ziarno świata albo 0, gdy świata jeszcze nie ma. Rysowanie mapy i flot pyta o nie co klatkę,
+## także zanim przyjdzie stan, więc zabezpieczenie żyje tu, a nie w każdym wołającym.
+func world_seed() -> int:
+	return world.seed_val if world != null else 0
+
+
 func own_settlements() -> Array:
 	var out: Array = []
 	for s in settlements.values():

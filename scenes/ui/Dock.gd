@@ -76,7 +76,7 @@ func _sync_visibility(path: String = "") -> void:
 
 func _layout() -> void:
 	var vis := get_viewport().get_visible_rect().size
-	var m := MedievalTheme.px(MARGIN)
+	var m := MedievalTheme.gap(MARGIN)
 	var tool := MedievalTheme.px(TOOL)
 	var bottom := vis.y - SafeArea.bottom_inset(get_viewport()) - m - tool
 	fleets_button.position = Vector2(m, bottom)

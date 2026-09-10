@@ -1,9 +1,14 @@
 class_name Settlement
 extends RefCounted
 
+## Tekst w miejsce pseudonimu, gdy serwer go nie przysłał. Nigdy numer konta - glosariusz: Nickname.
+const UNKNOWN_OWNER := "nieznany gracz"
+
 var coord: Vector2i = Coord.NONE
 var world_id: String = ""
 var owner_id: int = 0
+## Pseudonim właściciela (ownerName) - jedyna informacja o koncie widoczna dla innych graczy.
+var owner_name: String = UNKNOWN_OWNER
 var name: String = ""
 var biome: Biome.Type = Biome.Type.TEMPERATE
 ## true, gdy JSON zawiera resources (osada własna); cudze osady mają tylko dane publiczne.
@@ -28,6 +33,7 @@ static func from_json(d: Dictionary, biome_type: Biome.Type) -> Settlement:
 	s.coord = coord
 	s.world_id = str(d.get("world", ""))
 	s.owner_id = int(d.get("ownerId", 0))
+	s.owner_name = parse_owner_name(d)
 	s.name = str(d.get("name", ""))
 	s.biome = biome_type
 	s.is_own = d.has("resources")
@@ -41,6 +47,15 @@ static func from_json(d: Dictionary, biome_type: Biome.Type) -> Settlement:
 		s.last_sync_at = TimeUtil.parse_iso8601(str(d.get("lastSyncAt", "1970-01-01T00:00:00Z")))
 		s.buildings = _parse_buildings(d.get("buildings", {}), biome_type)
 	return s
+
+
+## ownerName z JSON osady albo floty; przyjmujemy wyłącznie niepusty String (nie liczbę,
+## nie null, nie sam biały znak) - inaczej `str()` wypisałby "<null>", "42.0" albo pustkę.
+static func parse_owner_name(d: Dictionary) -> String:
+	var raw: Variant = d.get("ownerName")
+	if raw is String and not raw.strip_edges().is_empty():
+		return raw
+	return UNKNOWN_OWNER
 
 
 ## Serwer podaje produkcję wprost (klient jej nie wylicza), więc niezgodną wartość tylko

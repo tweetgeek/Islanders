@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/HUD.gd" id="1"]
-[ext_resource type="Script" path="res://scenes/ui/Icon.gd" id="2"]
 
 [node name="HUD" type="CanvasLayer" groups=["hud"]]
 layer = 10
@@ -22,78 +21,27 @@ mouse_filter = 2
 layout_mode = 2
 mouse_filter = 2
 
-[node name="ProfileRow" type="HBoxContainer" parent="TopBar/Pad/BarRows"]
+[node name="IdentityRow" type="HBoxContainer" parent="TopBar/Pad/BarRows"]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Avatar" type="Control" parent="TopBar/Pad/BarRows/ProfileRow"]
-layout_mode = 2
-script = ExtResource("2")
-kind = &"anchor"
-
-[node name="Identity" type="VBoxContainer" parent="TopBar/Pad/BarRows/ProfileRow"]
+[node name="SettlementName" type="Label" parent="TopBar/Pad/BarRows/IdentityRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-mouse_filter = 2
-
-[node name="NameRow" type="HBoxContainer" parent="TopBar/Pad/BarRows/ProfileRow/Identity"]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="SettlementName" type="Label" parent="TopBar/Pad/BarRows/ProfileRow/Identity/NameRow"]
-layout_mode = 2
 text = "-"
 clip_text = true
 theme_type_variation = &"Title"
 
-[node name="BiomeBadge" type="Label" parent="TopBar/Pad/BarRows/ProfileRow/Identity/NameRow"]
+[node name="BiomeBadge" type="Label" parent="TopBar/Pad/BarRows/IdentityRow"]
 layout_mode = 2
+size_flags_vertical = 4
 theme_type_variation = &"Badge"
 
-[node name="Subtitle" type="Label" parent="TopBar/Pad/BarRows/ProfileRow/Identity"]
+[node name="Subtitle" type="Label" parent="TopBar/Pad/BarRows/IdentityRow"]
 layout_mode = 2
+size_flags_vertical = 4
 theme_type_variation = &"Caption"
-
-[node name="GoldPanel" type="PanelContainer" parent="TopBar/Pad/BarRows/ProfileRow"]
-layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"Chip"
-
-[node name="HBox" type="HBoxContainer" parent="TopBar/Pad/BarRows/ProfileRow/GoldPanel"]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="GoldIcon" type="Control" parent="TopBar/Pad/BarRows/ProfileRow/GoldPanel/HBox"]
-layout_mode = 2
-script = ExtResource("2")
-kind = &"gold"
-
-[node name="GoldLabel" type="Label" parent="TopBar/Pad/BarRows/ProfileRow/GoldPanel/HBox"]
-layout_mode = 2
-text = "0"
-theme_type_variation = &"Amount"
 
 [node name="ResourceGrid" type="HBoxContainer" parent="TopBar/Pad/BarRows"]
 layout_mode = 2
 mouse_filter = 2
-
-[node name="PopulationRow" type="HBoxContainer" parent="TopBar/Pad/BarRows"]
-layout_mode = 2
-mouse_filter = 2
-
-[node name="PopIcon" type="Control" parent="TopBar/Pad/BarRows/PopulationRow"]
-layout_mode = 2
-script = ExtResource("2")
-kind = &"people"
-
-[node name="PopBar" type="ProgressBar" parent="TopBar/Pad/BarRows/PopulationRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-mouse_filter = 2
-show_percentage = false
-
-[node name="PopLabel" type="Label" parent="TopBar/Pad/BarRows/PopulationRow"]
-layout_mode = 2
-text = "0 / 0"
-theme_type_variation = &"Amount"

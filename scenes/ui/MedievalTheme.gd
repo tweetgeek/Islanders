@@ -3,9 +3,14 @@ extends RefCounted
 
 ## Motyw „Chart & Timber”: dębowy chrome, mosiężne linie, pergaminowe karty.
 ## Morze (tło Main) jest jedyną ciemną powierzchnią; UI leży na nim jak drewno i papier.
-## Wymiary z projektu (viewport 390 px) przechodzą przez px(), bo nasz viewport ma 1080 px.
+## Wymiary z projektu (viewport 390 px) przechodzą przez px(), bo nasz viewport ma 1080 px;
+## przestrzeń między elementami i wokół nich przechodzi przez gap(), które dokłada gęstość.
 
 const SCALE := 2.77
+
+## Gęstość odstępów: mnożnik wyłącznie dla przestrzeni między elementami i wokół nich (gap()),
+## niezależny od SCALE. Rozmiary tekstu, ikon i przycisków zostają przy px().
+const DENSITY := 0.7
 
 const PARCHMENT := Color("eadfc4")
 const VELLUM := Color("dccca6")
@@ -62,6 +67,13 @@ static func px(v: float) -> int:
 	return int(roundf(v * SCALE))
 
 
+## Odstęp: przestrzeń między elementami i wokół nich. Skalowana dodatkowo gęstością,
+## żeby dało się zagęścić interfejs bez zmniejszania tekstu i ikon.
+static func gap(v: float) -> int:
+	return int(roundf(v * SCALE * DENSITY))
+
+
+## Marginesy wewnętrzne to odstęp (gap), promień i obramowanie to rozmiar (px).
 static func flat(bg: Color, border: Color, radius: int, border_width: int = 1,
 		pad_h: int = 10, pad_v: int = 8) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -69,10 +81,10 @@ static func flat(bg: Color, border: Color, radius: int, border_width: int = 1,
 	sb.set_corner_radius_all(px(radius))
 	sb.border_color = border
 	sb.set_border_width_all(px(border_width))
-	sb.content_margin_left = px(pad_h)
-	sb.content_margin_right = px(pad_h)
-	sb.content_margin_top = px(pad_v)
-	sb.content_margin_bottom = px(pad_v)
+	sb.content_margin_left = gap(pad_h)
+	sb.content_margin_right = gap(pad_h)
+	sb.content_margin_top = gap(pad_v)
+	sb.content_margin_bottom = gap(pad_v)
 	sb.anti_aliasing = true
 	return sb
 
@@ -167,8 +179,8 @@ static func build() -> Theme:
 	t.set_stylebox("normal", "Primary", prim)
 	t.set_stylebox("hover", "Primary", flat(BRASS_HOT, SECTION, 4, 2, 14, 14))
 	var prim_down := flat(BRASS_HOT, SECTION, 4, 2, 14, 14)
-	prim_down.content_margin_top = px(17)   # 3 px skoku w dół, cień znika
-	prim_down.content_margin_bottom = px(11)
+	prim_down.content_margin_top = gap(14) + px(3)      # skok o 3 px projektu w dół, cień znika
+	prim_down.content_margin_bottom = gap(14) - px(3)
 	t.set_stylebox("pressed", "Primary", prim_down)
 	t.set_color("font_color", "Danger", BLOOD)
 	t.set_color("font_hover_color", "Danger", BLOOD)
@@ -201,8 +213,8 @@ static func build() -> Theme:
 	t.set_stylebox("panel", "ScrollContainer", StyleBoxEmpty.new())
 	t.set_stylebox("separator", "HSeparator", flat(OAK_EDGE, OAK_EDGE, 0, 0, 0, 0))
 	t.set_constant("separation", "HSeparator", px(1))
-	t.set_constant("separation", "VBoxContainer", px(9))
-	t.set_constant("separation", "HBoxContainer", px(6))
+	t.set_constant("separation", "VBoxContainer", gap(9))
+	t.set_constant("separation", "HBoxContainer", gap(6))
 	return t
 
 

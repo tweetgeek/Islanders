@@ -29,6 +29,7 @@ func _ready() -> void:
 		s.close_requested.connect(close)
 	building_sheet.upgrade_requested.connect(_on_upgrade_requested)
 	fleets_sheet.fleet_tapped.connect(_on_fleet_tapped)
+	inspect_sheet.enter_settlement_requested.connect(_on_enter_settlement_requested)
 	SceneManager.view_changed.connect(func(_path: String) -> void: _hide_now())
 	get_viewport().size_changed.connect(_relayout)
 
@@ -157,4 +158,15 @@ func _on_upgrade_requested(coord: Vector2i, building: int) -> void:
 ## Tap w kartę: arkusz znika, mapa otwiera się na pozycji floty (view_changed zamknie warstwę od razu).
 func _on_fleet_tapped(fleet: Fleet) -> void:
 	close()
-	SceneManager.show_world_map_at(fleet.position_at(TimeUtil.now()))
+	SceneManager.show_world_map_at(fleet.position_at(TimeUtil.now(), GameState.world_seed()))
+
+
+## Akcja arkusza własnej osady. Przełącza osadę aktywną tylko wtedy, gdy to inna osada -
+## „Wróć do osady” nie ma przebudowywać paska ani widoku. Zmiana widoku zamknie warstwę od razu.
+func _on_enter_settlement_requested(coord: Vector2i) -> void:
+	close()
+	var active := GameState.active_settlement
+	if active == null or active.coord != coord:
+		if not GameState.set_active_settlement(coord):
+			return
+	SceneManager.show_island_detail()

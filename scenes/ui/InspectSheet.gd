@@ -1,9 +1,17 @@
 class_name InspectSheet
 extends PanelContainer
 
-## Arkusz oglądanej wyspy nad mapą: cudza osada (dane publiczne) albo wyspa niczyja (znalezisko).
+## Arkusz oglądanej wyspy nad mapą: cudza osada (dane publiczne), wyspa niczyja (znalezisko)
+## albo własna osada (dane publiczne i akcja wejścia). Dane prywatne własnej osady są o jedno
+## tapnięcie dalej, w widoku osady - arkusz ich nie powiela.
 
 signal close_requested
+## Jedyna droga zmiany osady aktywnej z mapy (glosariusz: Active Settlement).
+signal enter_settlement_requested(coord: Vector2i)
+
+const ENTER_TEXT := "PRZEJDŹ DO OSADY"
+const RETURN_TEXT := "WRÓĆ DO OSADY"
+const ACTION_HEIGHT := 48.0
 
 @onready var grabber: Panel = $SheetMargin/Body/Grabber
 @onready var biome_icon: Icon = $SheetMargin/Body/Header/HBox/BiomeIcon
@@ -15,11 +23,16 @@ signal close_requested
 @onready var deposit_header: Label = $SheetMargin/Body/DepositHeader
 @onready var deposit_row: HBoxContainer = $SheetMargin/Body/DepositRow
 @onready var empty_label: Label = $SheetMargin/Body/EmptyLabel
+@onready var action_button: Button = $SheetMargin/Body/ActionButton
+
+var _coord: Vector2i = Coord.NONE
 
 
 func _ready() -> void:
 	SheetStyle.apply_common(self, grabber, biome_icon, close_button, close_requested, 40.0)
 	subtitle.add_theme_color_override("font_color", MedievalTheme.INK_SOFT)
+	action_button.custom_minimum_size.y = MedievalTheme.px(ACTION_HEIGHT)
+	action_button.pressed.connect(func() -> void: enter_settlement_requested.emit(_coord))
 
 
 ## Zwraca false (i push_error) dla komórki bez wyspy.
@@ -36,9 +49,22 @@ func open(coord: Vector2i) -> bool:
 	for c in deposit_row.get_children():
 		deposit_row.remove_child(c)
 		c.queue_free()
+	_coord = coord
+	action_button.hide()
+	if s != null and s.is_own:
+		name_label.text = s.name
+		subtitle.text = "(%d, %d) · twoja osada" % [coord.x, coord.y]
+		public_label.hide()
+		deposit_header.hide()
+		deposit_row.hide()
+		empty_label.hide()
+		var active := GameState.active_settlement
+		action_button.text = RETURN_TEXT if active != null and active.coord == coord else ENTER_TEXT
+		action_button.show()
+		return true
 	if s != null:
 		name_label.text = s.name
-		subtitle.text = "(%d, %d) · gracz %d" % [coord.x, coord.y, s.owner_id]
+		subtitle.text = "(%d, %d) · %s" % [coord.x, coord.y, s.owner_name]
 		public_label.show()
 		deposit_header.hide()
 		deposit_row.hide()

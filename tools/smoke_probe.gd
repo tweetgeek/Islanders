@@ -136,6 +136,13 @@ func _settled() -> bool:
 	return not _sheets().visible
 
 
+## Prawda, gdy arkusz jest otwarty i skończył wjeżdżać. Tapnięcie przycisku w arkuszu w trakcie
+## animacji trafiałoby w miejsce, z którego przycisk właśnie odjeżdża.
+func _opened() -> bool:
+	var sheets := _sheets()
+	return sheets.is_open() and (sheets._tween == null or not sheets._tween.is_running())
+
+
 func _check(ok: bool, what: String) -> void:
 	print("%s %s" % ["OK  " if ok else "FAIL", what])
 	if not ok:
@@ -157,8 +164,8 @@ func _process(_delta: float) -> void:
 			_check(ThemeDB.get_default_theme().get_type_variation_base(&"Plaque") == &"PanelContainer", "motyw wgrany")
 			var hud := get_node("Main/HUD")
 			_check(hud.settlement_name.text == "Koralowa", "HUD pokazuje osadę aktywną")
-			_check(hud.pop_label.text == "42 / 120", "HUD pokazuje populację")
 			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
+			_check(det != null and det.pop_label.text == "42 / 120", "widok osady pokazuje populację")
 			var gen: IslandGenerator = det.get_node("Generator") if det != null else null
 			_check(det != null and gen.show_slots and gen._slot_positions.size() == 6, "osada ma 6 slotów")
 			var dock := get_node("Main/Dock")
@@ -228,14 +235,14 @@ func _process(_delta: float) -> void:
 			_check(_map().camera.position != _pan_start, "przeciągnięcie na ikonie zasobu przesuwa mapę")
 		# --- Tap cudzej osady otwiera arkusz inspekcji; gest na arkuszu nie rusza mapy. ---
 		elif _frame == _gate + 18:
-			_map().camera.position = WorldGrid.cell_to_world(FixtureCells.FOREIGN)
+			_map().camera.position = WorldGrid.island_center(GameState.world_seed(), FixtureCells.FOREIGN)
 			_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		elif _frame == _gate + 20:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		elif _frame == _gate + 23:
 			var sheets := _sheets()
 			_check(sheets.is_open() and sheets.current_sheet() == sheets.inspect_sheet, "tap cudzej osady otwiera arkusz inspekcji")
-			_check(sheets.inspect_sheet.subtitle.text.contains("gracz 9"), "arkusz inspekcji pokazuje właściciela")
+			_check(sheets.inspect_sheet.subtitle.text.contains("Kormoran"), "arkusz inspekcji pokazuje pseudonim właściciela")
 			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "mapa zostaje pod arkuszem")
 			_pan_start = _map().camera.position
 			_drag_from_win = _control_center(sheets.inspect_sheet)
@@ -253,7 +260,7 @@ func _process(_delta: float) -> void:
 		_gate = _frame
 		_phase = 4
 		_check(not _sheets().is_open(), "backdrop zamyka arkusz inspekcji")
-		_map().camera.position = WorldGrid.cell_to_world(FixtureCells.DEPOSIT)
+		_map().camera.position = WorldGrid.island_center(GameState.world_seed(), FixtureCells.DEPOSIT)
 		_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 	elif _phase == 4:
 		if _frame == _gate + 2:
@@ -263,18 +270,31 @@ func _process(_delta: float) -> void:
 			_check(sheets.is_open() and sheets.inspect_sheet.deposit_header.visible, "wyspa niczyja pokazuje znalezisko")
 			sheets.close()
 			_phase = 5   # sheets.close() woła ten sam tween co zamknięcie przez backdrop - znów czekamy
-	# --- Tap własnej osady wraca do widoku osady. ---
+	# --- Tap własnej, aktywnej osady tylko ją ogląda; wejście to jawna akcja w arkuszu. ---
 	elif _phase == 5 and _settled():
 		_gate = _frame
 		_phase = 6
-		_map().camera.position = WorldGrid.cell_to_world(FixtureCells.HOME)
+		_map().camera.position = WorldGrid.island_center(GameState.world_seed(), FixtureCells.HOME)
 		_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 	elif _phase == 6:
 		if _frame == _gate + 2:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		elif _frame == _gate + 5:
-			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "tap własnej osady wraca do widoku osady")
+			var sheets := _sheets()
+			_check(sheets.is_open() and sheets.current_sheet() == sheets.inspect_sheet, "tap własnej osady otwiera arkusz")
+			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "tap własnej osady zostawia mapę")
+			_check(GameState.active_settlement.name == "Koralowa", "tap nie zmienia osady aktywnej")
+			_check(sheets.inspect_sheet.action_button.text == InspectSheet.RETURN_TEXT, "arkusz aktywnej osady proponuje powrót")
+			_phase = 7   # przycisk tapiemy dopiero, gdy arkusz skończy wjeżdżać (patrz _opened())
+	elif _phase == 7 and _opened():
+		_gate = _frame
+		_phase = 8
+		_tap_control(_sheets().inspect_sheet.action_button)
+	elif _phase == 8:
+		if _frame == _gate + 5:
+			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "WRÓĆ DO OSADY przełącza do widoku osady")
 			_check(not _sheets().is_open(), "zmiana widoku zamyka arkusze")
+			_check(GameState.active_settlement.name == "Koralowa", "powrót nie zmienia osady aktywnej")
 		# --- Dock: floty jako arkusz, tap w kartę przenosi na mapę przy flocie. Widoki są tu
 		# zmieniane przez SceneManager.show_world_map_at(), które od razu (bez animacji) zamyka
 		# Sheets przez _hide_now() na sygnale view_changed - stąd od tego miejsca do końca testu
@@ -294,15 +314,15 @@ func _process(_delta: float) -> void:
 			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "tap w kartę floty otwiera mapę")
 			_check(not _sheets().is_open(), "arkusz flot zamknięty po tapie")
 			var incoming: Fleet = GameState.fleets["f3"]
-			var dist: float = _map().camera.position.distance_to(incoming.position_at(TimeUtil.now()))
+			var dist: float = _map().camera.position.distance_to(incoming.position_at(TimeUtil.now(), GameState.world_seed()))
 			_check(dist < WorldGrid.CELL_SIZE * 2.0, "kamera przy pozycji floty")
 			ApiClient.resync()
 		elif _frame == _gate + 20:
 			_check(GameState.settlements.size() == 3, "resync zachowuje osady")
-			_check(get_node("Main/HUD").pop_label.text == "42 / 120", "HUD po resyncu")
+			_check(get_node("Main/HUD").settlement_name.text == "Koralowa", "HUD po resyncu")
 			_tap_control(_map().back_plaque)
 		elif _frame == _gate + 24:
-			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "plakietka OSADA wraca do osady")
+			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "przycisk powrotu wraca do osady")
 			print("SMOKE %s" % ("FAILED" if _failed else "PASSED"))
 			get_tree().quit(1 if _failed else 0)
 	elif _frame > 60000:

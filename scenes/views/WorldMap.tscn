@@ -26,8 +26,7 @@ current = true
 layer = 1
 
 [node name="BackPlaque" type="Button" parent="UI"]
-text = "OSADA"
-alignment = 2
+tooltip_text = "Wróć do osady"
 theme_type_variation = &"ToolButton"
 
 [node name="CoordPanel" type="PanelContainer" parent="UI"]

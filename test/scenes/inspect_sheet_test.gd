@@ -4,12 +4,23 @@ const SHEET := preload("res://scenes/ui/InspectSheet.tscn")
 const FOREIGN := FixtureCells.FOREIGN
 const EMPTY_WITH_DEPOSIT := FixtureCells.DEPOSIT
 const SEA := FixtureCells.SEA
+const HOME := FixtureCells.HOME
+const OWN_SECOND := FixtureCells.OWN_SECOND
+
+
+func _own(cell: Vector2i, settlement_name: String) -> Dictionary:
+	return {"x": cell.x, "y": cell.y, "ownerId": 7, "name": settlement_name, "resources": {}}
 
 
 func before_test() -> void:
 	GameState.reset()
 	GameState.apply_world(FixtureCells.world_json())
-	GameState.apply_settlements([{"x": FOREIGN.x, "y": FOREIGN.y, "ownerId": 9, "name": "Szara Skała"}])
+	GameState.apply_settlements([
+		{"x": FOREIGN.x, "y": FOREIGN.y, "ownerId": 9, "ownerName": "Kormoran", "name": "Szara Skała"},
+		_own(HOME, "Koralowa"),
+		_own(OWN_SECOND, "Popielna"),
+	])
+	GameState.set_active_settlement(HOME)
 
 
 func after_test() -> void:
@@ -26,7 +37,8 @@ func test_foreign_settlement_shows_public_data() -> void:
 	var s := _sheet()
 	assert_bool(s.open(FOREIGN)).is_true()
 	assert_str(s.name_label.text).is_equal("Szara Skała")
-	assert_str(s.subtitle.text).is_equal("(%d, %d) · gracz 9" % [FOREIGN.x, FOREIGN.y])
+	assert_str(s.subtitle.text).is_equal("(%d, %d) · Kormoran" % [FOREIGN.x, FOREIGN.y])
+	assert_bool(s.subtitle.text.contains("9")).is_false()
 	assert_str(s.biome_badge.text).is_equal(Biome.key(GameState.island_at(FOREIGN).biome))
 	assert_bool(s.public_label.visible).is_true()
 	assert_bool(s.deposit_header.visible).is_false()
@@ -69,3 +81,48 @@ func test_two_opens_in_one_frame_do_not_leave_stale_chips() -> void:
 	assert_bool(s.open(EMPTY_WITH_DEPOSIT)).is_true()
 	assert_int(s.deposit_row.get_child_count()).is_equal(island.deposit.size())
 	await await_idle_frame()
+
+
+## Nagłówek arkusza leży na dębie (ModalHeader), chip zasobu na ciemnym dębie (Chip).
+func test_header_and_chip_icons_cut_out_in_their_own_background() -> void:
+	var s := _sheet()
+	assert_that(s.biome_icon.knockout).is_equal(MedievalTheme.OAK)
+	var chip: PanelContainer = auto_free(SheetStyle.resource_chip("sulfur"))
+	assert_that(SheetStyle.chip_icon(chip).knockout).is_equal(MedievalTheme.OAK_DEEP)
+
+
+func test_own_inactive_settlement_offers_to_enter_it() -> void:
+	var s := _sheet()
+	assert_bool(s.open(OWN_SECOND)).is_true()
+	assert_str(s.name_label.text).is_equal("Popielna")
+	assert_str(s.subtitle.text).is_equal("(%d, %d) · twoja osada" % [OWN_SECOND.x, OWN_SECOND.y])
+	assert_bool(s.action_button.visible).is_true()
+	assert_str(s.action_button.text).is_equal(InspectSheet.ENTER_TEXT)
+	assert_bool(s.public_label.visible).is_false()
+	assert_bool(s.deposit_header.visible).is_false()
+	assert_bool(s.empty_label.visible).is_false()
+
+
+func test_own_active_settlement_offers_to_return() -> void:
+	var s := _sheet()
+	assert_bool(s.open(HOME)).is_true()
+	assert_str(s.action_button.text).is_equal(InspectSheet.RETURN_TEXT)
+	assert_bool(s.action_button.visible).is_true()
+
+
+func test_action_hides_again_for_a_foreign_island() -> void:
+	var s := _sheet()
+	s.open(HOME)
+	s.open(FOREIGN)
+	assert_bool(s.action_button.visible).is_false()
+	s.open(EMPTY_WITH_DEPOSIT)
+	assert_bool(s.action_button.visible).is_false()
+
+
+func test_action_emits_the_inspected_coord() -> void:
+	var s := _sheet()
+	var got: Array = []
+	s.enter_settlement_requested.connect(func(c: Vector2i) -> void: got.append(c))
+	s.open(OWN_SECOND)
+	s.action_button.pressed.emit()
+	assert_that(got).is_equal([OWN_SECOND])

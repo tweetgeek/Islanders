@@ -52,3 +52,28 @@ func test_into_button_adds_full_rect_child() -> void:
 	assert_float(icon.anchor_right).is_equal(1.0)
 	assert_float(icon.offset_left).is_equal(6.0)
 	assert_float(icon.offset_right).is_equal(-6.0)
+
+
+func test_knockout_defaults_to_parchment_and_stores_a_set_value() -> void:
+	var icon: Icon = auto_free(Icon.new())
+	assert_that(icon.knockout).is_equal(MedievalTheme.PARCHMENT)
+	icon.knockout = MedievalTheme.OAK
+	assert_that(icon.knockout).is_equal(MedievalTheme.OAK)
+
+
+## Strażnik tekstowy: jedynym miejscem, gdzie Icon.gd zna PARCHMENT, ma być wartość domyślna
+## eksportu. Każde inne wystąpienie to glif, który zignoruje ustawiony knockout i narysuje
+## pergaminową dziurę na dębowym tle.
+func test_glyphs_draw_cutouts_only_through_knockout() -> void:
+	var source := FileAccess.get_file_as_string("res://scenes/ui/Icon.gd")
+	assert_int(source.count("MedievalTheme.PARCHMENT")).is_equal(1)
+
+
+## Każdy przycisk z ikoną w tym projekcie ma dębowe tło (ToolButton), więc to jest wartość domyślna.
+func test_into_button_cuts_out_in_oak_by_default() -> void:
+	var button: Button = auto_free(Button.new())
+	add_child(button)
+	assert_that(Icon.into_button(button, &"map", Color.WHITE, 6.0).knockout).is_equal(MedievalTheme.OAK)
+	var other: Button = auto_free(Button.new())
+	add_child(other)
+	assert_that(Icon.into_button(other, &"map", Color.WHITE, 6.0, MedievalTheme.INK).knockout).is_equal(MedievalTheme.INK)

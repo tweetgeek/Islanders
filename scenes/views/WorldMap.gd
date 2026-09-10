@@ -6,9 +6,11 @@ const LABEL_MIN_ZOOM := 0.6
 const OWN_COLOR := MedievalTheme.BRASS
 const FOREIGN_COLOR := MedievalTheme.CREAM_SOFT
 const LABEL_FONT_SIZE := 32
+## Etykieta osady pod wyspą. Szerokość musi zostać mniejsza niż najmniejsza odległość środków
+## sąsiadów (CELL_SIZE × (1 − 2 × OFFSET_RANGE) = 332 px) - pilnuje tego world_map_test.
+const LABEL_SIZE := Vector2(240, 56)
 const UI_MARGIN := 10.0
 const TOOL := 46.0
-const BACK_WIDTH := 110.0
 
 @onready var water: Node2D = $Water
 @onready var chunks: Node2D = $Chunks
@@ -36,7 +38,7 @@ func _ready() -> void:
 	if saved.has("position"):
 		camera.position = saved["position"]
 	elif GameState.active_settlement != null:
-		camera.position = WorldGrid.cell_to_world(GameState.active_settlement.coord)
+		camera.position = WorldGrid.island_center(GameState.world_seed(), GameState.active_settlement.coord)
 	if saved.has("zoom"):
 		camera.zoom = saved["zoom"]
 	if GameState.world != null:
@@ -121,7 +123,7 @@ func _spawn_chunk(chunk: Vector2i) -> void:
 			gen.show_slots = false
 			gen.show_deposit = s == null
 			gen.deposit = island.deposit
-			gen.position = WorldGrid.cell_to_world(cell)
+			gen.position = WorldGrid.island_center(GameState.world_seed(), cell)
 			node.add_child(gen)
 			if s != null:
 				node.add_child(_settlement_ring(gen.position, island.radius, s))
@@ -144,16 +146,11 @@ func _settlement_ring(pos: Vector2, radius: float, s: Settlement) -> Line2D:
 
 func _style_ui() -> void:
 	var tool := MedievalTheme.px(TOOL)
-	back_plaque.custom_minimum_size = Vector2(MedievalTheme.px(BACK_WIDTH), tool)
+	# Sama strzałka, jak przyciski doku i przybliżania: napis zasłaniał wyspę pod paskiem.
+	back_plaque.custom_minimum_size = Vector2(tool, tool)
 	Icon.into_button(back_plaque, &"back", MedievalTheme.CREAM, MedievalTheme.px(12))
-	var back_icon: Icon = back_plaque.get_node("Icon")
-	back_icon.set_anchors_preset(Control.PRESET_LEFT_WIDE)   # zeruje offsety, stąd ustawiane poniżej
-	back_icon.offset_left = MedievalTheme.px(12)
-	back_icon.offset_right = MedievalTheme.px(12 + 22)
-	back_icon.offset_top = MedievalTheme.px(12)
-	back_icon.offset_bottom = -MedievalTheme.px(12)
 	coord_label.add_theme_color_override("font_color", MedievalTheme.PARCHMENT)
-	zoom_controls.add_theme_constant_override("separation", MedievalTheme.px(8))
+	zoom_controls.add_theme_constant_override("separation", MedievalTheme.gap(8))
 	for b in [zoom_in, zoom_out]:
 		b.custom_minimum_size = Vector2(tool, tool)
 	Icon.into_button(zoom_in, &"plus", MedievalTheme.CREAM, MedievalTheme.px(13))
@@ -171,7 +168,7 @@ func _hud_bar_height() -> float:
 
 ## Plakietka powrotu i panel współrzędnych pod paskiem HUD, zoom nad safe area.
 func _layout_ui() -> void:
-	var m := MedievalTheme.px(UI_MARGIN)
+	var m := MedievalTheme.gap(UI_MARGIN)
 	var top := _hud_bar_height() + m
 	back_plaque.position = Vector2(m, top)
 	coord_panel.offset_top = top
@@ -187,10 +184,11 @@ func _rebuild_labels() -> void:
 		var island := GameState.island_at(s.coord)
 		var radius := island.radius if island != null else 80.0
 		var label := Label.new()
-		label.text = "%s\n%s" % [s.name, "Ty" if s.is_own else "gracz %d" % s.owner_id]
+		label.text = "%s\n%s" % [s.name, "Ty" if s.is_own else s.owner_name]
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.size = Vector2(240, 56)
-		label.position = WorldGrid.cell_to_world(s.coord) + Vector2(-120, radius * 1.3 + 4)
+		label.size = LABEL_SIZE
+		label.position = WorldGrid.island_center(GameState.world_seed(), s.coord) \
+			+ Vector2(-LABEL_SIZE.x / 2.0, radius * 1.3 + 4)
 		label.theme_type_variation = &"Title"
 		label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 		label.add_theme_color_override("font_color", OWN_COLOR if s.is_own else FOREIGN_COLOR)
@@ -216,14 +214,13 @@ func _on_tapped(world_pos: Vector2, screen_pos: Vector2) -> void:
 	var island := GameState.island_at(cell)
 	if island == null:
 		return
-	var local := world_pos - WorldGrid.cell_to_world(cell)
+	# Od środka wyspy, nie komórki. Sąsiednich komórek nie trzeba sprawdzać: dysk trafienia
+	# nigdy nie wychodzi poza własną komórkę (world_map_test, test_tap_disc_never_leaves_its_cell).
+	var local := world_pos - WorldGrid.island_center(GameState.world_seed(), cell)
 	if not IslandGenerator.contains(local, island.radius):
 		return
-	var s := GameState.settlement_at(cell)
-	if s != null and s.is_own:
-		GameState.set_active_settlement(cell)
-		SceneManager.show_island_detail()
-		return
+	# Tapnięcie zawsze ogląda, także własną i aktywną osadę; osadę aktywną zmienia wyłącznie
+	# akcja w arkuszu (glosariusz: Active Settlement).
 	GameState.inspect(cell)
 	var sheets := get_tree().get_first_node_in_group("sheets")
 	if sheets != null:

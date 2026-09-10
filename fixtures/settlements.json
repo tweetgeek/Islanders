@@ -1,7 +1,7 @@
 [
   {
     "world": "w1", "x": 80, "y": 73,
-    "ownerId": 7, "name": "Koralowa",
+    "ownerId": 7, "ownerName": "Mewa", "name": "Koralowa",
     "resources": { "wood": 500, "stone": 200, "food": 1000, "iron": 40, "sulfur": 0 },
     "productionPerHour": { "wood": 120, "stone": 0, "food": 200, "iron": 0, "sulfur": 0 },
     "capacity": 8000,
@@ -10,7 +10,7 @@
   },
   {
     "world": "w1", "x": 87, "y": 72,
-    "ownerId": 7, "name": "Popielna",
+    "ownerId": 7, "ownerName": "Mewa", "name": "Popielna",
     "resources": { "wood": 120, "stone": 60, "food": 300, "iron": 900, "sulfur": 450 },
     "productionPerHour": { "wood": 0, "stone": 0, "food": 0, "iron": 60, "sulfur": 40 },
     "capacity": 4000,
@@ -19,6 +19,6 @@
   },
   {
     "world": "w1", "x": 81, "y": 73,
-    "ownerId": 9, "name": "Szara Skała"
+    "ownerId": 9, "ownerName": "Kormoran", "name": "Szara Skała"
   }
 ]

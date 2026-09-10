@@ -7,7 +7,7 @@ const ARRIVE := DEPART + 3600.0
 
 func _fleet(mission: String, owner: int) -> Fleet:
 	return Fleet.from_json({
-		"id": "f1", "ownerId": owner, "mission": mission,
+		"id": "f1", "ownerId": owner, "ownerName": "Kormoran", "mission": mission,
 		"from": {"x": 0, "y": 0}, "to": {"x": 4, "y": 0},
 		"ships": {"SLOOP": 10, "GALLEON": 2},
 		"cargo": {"units": {"MILITIA": 20}, "resources": {"iron": 300}},
@@ -36,7 +36,7 @@ func test_foreign_attack_hides_details_and_is_red() -> void:
 	var c := _card()
 	c.refresh(_fleet("ATTACK", 9), DEPART, 7)
 	assert_str(c.title.text).is_equal("Atak → (4, 0)")
-	assert_str(c.composition.text).is_equal("gracz 9 · szczegóły niewidoczne")
+	assert_str(c.composition.text).is_equal("Kormoran · szczegóły niewidoczne")
 	assert_str(String(c.eta_bar.theme_type_variation)).is_equal("RaidBar")
 	assert_that((c.get_theme_stylebox("panel") as StyleBoxFlat).border_color).is_equal(MedievalTheme.BLOOD)
 	assert_str(String(c.mission_icon.kind)).is_equal("raid")

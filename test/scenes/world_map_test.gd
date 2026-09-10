@@ -14,7 +14,8 @@ const WORLD_SEED := FixtureCells.WORLD_SEED
 const WORLD_SIZE := 4000
 const HOME_CELL := FixtureCells.HOME
 const FOREIGN_CELL := FixtureCells.FOREIGN
-## Daleko od krawędzi świata (0..1_024_000), żeby kamera nigdy nie była przycinana przez bounds.
+## Daleko od krawędzi świata (0..1_792_000, czyli 4000 komórek × 448 px), żeby kamera nigdy
+## nie była przycinana przez bounds.
 const START_POS := Vector2(200000.0, 200000.0)
 ## Portret projektu; testy obracające ekran wracają do niego, żeby nie zmieniać stanu innym testom.
 const PORTRAIT_WINDOW := Vector2i(1080, 1920)
@@ -65,7 +66,7 @@ func _own(x: int, y: int, settlement_name: String) -> Dictionary:
 
 ## Cudza osada: kontrakt API nie przysyła dla niej "resources" i po tym poznaje ją Settlement.
 func _foreign(cell: Vector2i, settlement_name: String) -> Dictionary:
-	return {"x": cell.x, "y": cell.y, "ownerId": 9, "name": settlement_name}
+	return {"x": cell.x, "y": cell.y, "ownerId": 9, "ownerName": "Kormoran", "name": settlement_name}
 
 
 func _hud() -> CanvasLayer:
@@ -100,10 +101,10 @@ func _tap(camera: MapCamera, screen_pos: Vector2) -> void:
 		camera._on_touch(e)
 
 
-## Ustawia kamerę tak, żeby wskazany punkt ekranu pokrywał się ze środkiem komórki.
+## Ustawia kamerę tak, żeby wskazany punkt ekranu pokrywał się ze środkiem wyspy w komórce.
 func _aim(camera: MapCamera, screen_pos: Vector2, cell: Vector2i) -> void:
 	var half := camera.get_viewport_rect().size / 2.0
-	camera.position = WorldGrid.cell_to_world(cell) - (screen_pos - half) / camera.zoom
+	camera.position = WorldGrid.island_center(WORLD_SEED, cell) - (screen_pos - half) / camera.zoom
 
 
 func _spawn_map(cam_pos: Vector2) -> Node2D:
@@ -351,7 +352,7 @@ func test_coord_panel_follows_camera() -> void:
 	assert_str(world_map.coord_label.text).is_equal("X %d · Y %d · zoom 1.0" % [HOME_CELL.x, HOME_CELL.y])
 
 
-## Regresja: HUD przy size_changed przepina ResourceGrid między BarRows a ProfileRow, a
+## Regresja: HUD przy size_changed przepina ResourceGrid między BarRows a IdentityRow, a
 ## przesortowanie kontenera jest odroczone do fazy layoutu. Widok podpięty do tego samego
 ## size_changed odczytuje więc bar_height() sprzed przepięcia i zostaje z nim na zawsze -
 ## chrome mapy wisi o cały rząd kart za nisko (albo za wysoko) aż do kolejnego obrotu.
@@ -360,12 +361,12 @@ func test_map_ui_follows_hud_bar_after_rotation() -> void:
 	var hud := _hud()
 	var world_map := _spawn_map(START_POS)
 	await _resize_window(PORTRAIT_WINDOW)
-	var m := MedievalTheme.px(WORLD_MAP_SCRIPT.UI_MARGIN)
+	var m := MedievalTheme.gap(WORLD_MAP_SCRIPT.UI_MARGIN)
 	assert_float(world_map.coord_panel.offset_top).is_equal_approx(hud.bar_height() + m, 0.5)
 
 	await _resize_window(LANDSCAPE_WINDOW)
 	# Obrót musi realnie zmienić wysokość paska, inaczej test przechodziłby bez naprawy.
-	assert_object(hud.resource_grid.get_parent()).is_same(hud.profile_row)
+	assert_object(hud.resource_grid.get_parent()).is_same(hud.identity_row)
 	assert_float(world_map.coord_panel.offset_top).is_equal_approx(hud.bar_height() + m, 0.5)
 	assert_float(world_map.back_plaque.position.y).is_equal_approx(hud.bar_height() + m, 0.5)
 
@@ -398,13 +399,14 @@ func test_tap_inside_hud_bar_does_not_open_inspect_sheet() -> void:
 	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
 
 
-## Ta sama martwa strefa od drugiej strony: tap w pasek nad własną wyspą nie może przestawić
-## osady aktywnej ani przerzucić gracza do widoku osady.
-func test_tap_inside_hud_bar_does_not_enter_own_settlement() -> void:
+## Ta sama martwa strefa od drugiej strony: tap w pasek nad własną wyspą nie może otworzyć
+## arkusza oglądu (a więc też nie może przestawić osady aktywnej ani przerzucić gracza do
+## widoku osady - to wciąż wynikałoby z otwarcia arkusza).
+func test_tap_inside_hud_bar_does_not_inspect_own_settlement() -> void:
 	_apply_world()
 	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa")])
 	var hud := _hud()
-	var _sheets_layer := _sheets()
+	var sheets := _sheets()
 	var world_map := _spawn_map(START_POS)
 	await _resize_window(PORTRAIT_WINDOW)
 	var camera: MapCamera = world_map.camera
@@ -415,5 +417,163 @@ func test_tap_inside_hud_bar_does_not_enter_own_settlement() -> void:
 	_aim(camera, bar_point, HOME_CELL)
 	_tap(camera, bar_point)
 	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_false()
 	assert_object(GameState.active_settlement).is_null()
 	assert_str(SceneManager.current_view).is_equal(view_before)
+
+	# Kontrola: ten sam tap poniżej paska nadal otwiera arkusz oglądu własnej osady.
+	var below := vis / 2.0
+	_aim(camera, below, HOME_CELL)
+	_tap(camera, below)
+	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_true()
+	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
+
+
+func test_map_ui_margins_are_gaps() -> void:
+	_apply_world()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	assert_float(world_map.back_plaque.position.x).is_equal(float(MedievalTheme.gap(world_map.UI_MARGIN)))
+	assert_int(world_map.zoom_controls.get_theme_constant("separation")).is_equal(MedievalTheme.gap(8))
+
+
+## Najmniejszy dopuszczalny prześwit między obwódkami wody przybrzeżnej sąsiednich wysp.
+## Pomiar przy CELL_SIZE 448 i OFFSET_RANGE 0.13 dał ~52 px na ~14 000 par (spec, sekcja 5.2).
+const MIN_SHALLOW_GAP := 40.0
+
+
+func _shallow_at(cell: Vector2i, island: Island) -> PackedVector2Array:
+	var center := WorldGrid.island_center(WORLD_SEED, cell)
+	var out := PackedVector2Array()
+	for p in IslandGenerator.shallow_outline(island.seed_val, island.radius):
+		out.append(p + center)
+	return out
+
+
+## Niezmiennik geometrii na tych samych wielokątach, które widać na ekranie: każdą obwódkę
+## poszerzamy o połowę prześwitu i żadne dwie sąsiednie (także po przekątnej) nie mogą się
+## wtedy przeciąć. Zmniejszenie komórki albo zwiększenie przesunięcia musi przejść ten test.
+func test_neighbouring_shallows_keep_a_clear_gap() -> void:
+	var inflated := {}
+	for y in range(50, 110):
+		for x in range(50, 110):
+			var cell := Vector2i(x, y)
+			var island := WorldGrid.island_at(WORLD_SEED, cell)
+			if island != null:
+				var grown := Geometry2D.offset_polygon(_shallow_at(cell, island), MIN_SHALLOW_GAP / 2.0, Geometry2D.JOIN_ROUND)
+				inflated[cell] = grown[0]
+	var pairs := 0
+	for cell: Vector2i in inflated:
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]:
+			var other := cell + d
+			if not inflated.has(other):
+				continue
+			pairs += 1
+			assert_bool(Geometry2D.intersect_polygons(inflated[cell], inflated[other]).is_empty()) \
+				.override_failure_message("obwódki %s i %s bliżej niż %d px" % [cell, other, MIN_SHALLOW_GAP]) \
+				.is_true()
+	assert_int(pairs).is_greater(100)
+
+
+## _on_tapped sprawdza wyłącznie wyspę tapniętej komórki. To wystarcza, dopóki dysk trafienia
+## największej, najbardziej przesuniętej wyspy mieści się w połowie komórki na każdej osi:
+## 0,13 × 448 + 1,1 × 110 = 179 px < 224 px.
+func test_tap_disc_never_leaves_its_cell() -> void:
+	var reach := WorldGrid.OFFSET_RANGE * WorldGrid.CELL_SIZE + WorldGrid.RADIUS_MAX * IslandGenerator.TAP_RADIUS_FACTOR
+	assert_float(reach).is_less(WorldGrid.CELL_SIZE / 2.0)
+
+
+## Punkt po stronie przesunięcia wyspy, w 95 % promienia trafienia od jej środka, ale dalej od
+## środka komórki niż promień trafienia. Liczone od środka komórki - jak przed tą zmianą - byłoby
+## pudłem; liczone od środka wyspy jest trafieniem.
+func test_tap_measures_from_the_offset_island_centre() -> void:
+	_apply_world()
+	GameState.apply_settlements([_foreign(FOREIGN_CELL, "Szara Skała")])
+	var sheets := _sheets()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var camera: MapCamera = world_map.camera
+	var island := WorldGrid.island_at(WORLD_SEED, FOREIGN_CELL)
+	var tap_radius := island.radius * IslandGenerator.TAP_RADIUS_FACTOR
+	var centre := WorldGrid.island_center(WORLD_SEED, FOREIGN_CELL)
+	var cell_centre := WorldGrid.cell_to_world(FOREIGN_CELL)
+	var target := centre + (centre - cell_centre).normalized() * tap_radius * 0.95
+	assert_float(target.distance_to(cell_centre)).is_greater(tap_radius)
+	camera.position = target   # środek ekranu wskazuje pozycję kamery
+	_tap(camera, camera.get_viewport_rect().size / 2.0)
+	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_true()
+	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
+
+
+func test_labels_sit_under_their_island_and_do_not_overlap() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa"), _foreign(FOREIGN_CELL, "Szara Skała")])
+	var world_map := _spawn_map(WorldGrid.island_center(WORLD_SEED, HOME_CELL))
+	await _settle(world_map)
+	var rects: Array[Rect2] = []
+	for label: Label in world_map.labels.get_children():
+		rects.append(Rect2(label.position, label.size))
+		if label.text.begins_with("Koralowa"):
+			var centre := WorldGrid.island_center(WORLD_SEED, HOME_CELL)
+			assert_float(label.position.x + label.size.x / 2.0).is_equal_approx(centre.x, 0.01)
+	assert_int(rects.size()).is_equal(2)
+	assert_bool(rects[0].intersects(rects[1])).is_false()
+
+
+func test_labels_show_nickname_for_others_and_you_for_own() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa"), _foreign(FOREIGN_CELL, "Szara Skała")])
+	var world_map := _spawn_map(WorldGrid.island_center(WORLD_SEED, HOME_CELL))
+	await _settle(world_map)
+	var texts: Array[String] = []
+	for label: Label in world_map.labels.get_children():
+		texts.append(label.text)
+	texts.sort()
+	assert_that(texts).is_equal(["Koralowa\nTy", "Szara Skała\nKormoran"])
+
+
+## Etykieta jest węższa niż najmniejsza możliwa odległość środków sąsiadów w poziomie,
+## więc dwie etykiety nie mogą się nałożyć niezależnie od tego, które wyspy są zajęte.
+func test_label_is_narrower_than_the_closest_possible_neighbour() -> void:
+	var closest := WorldGrid.CELL_SIZE * (1.0 - 2.0 * WorldGrid.OFFSET_RANGE)
+	assert_float(WORLD_MAP_SCRIPT.LABEL_SIZE.x).is_less(closest)
+
+
+func test_back_plaque_is_a_square_icon_button() -> void:
+	_apply_world()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	var back: Button = world_map.back_plaque
+	var tool := float(MedievalTheme.px(WORLD_MAP_SCRIPT.TOOL))
+	assert_str(back.text).is_empty()
+	assert_str(back.tooltip_text).is_equal("Wróć do osady")
+	assert_that(back.size).is_equal(Vector2(tool, tool))
+	var icon: Icon = back.get_node("Icon")
+	assert_str(String(icon.kind)).is_equal("back")
+	assert_float(icon.anchor_right).is_equal(1.0)
+	assert_bool(world_map.get_script().get_script_constant_map().has("BACK_WIDTH")).is_false()
+
+
+## Glosariusz, Active Settlement: obejrzenie wyspy nigdy nie zmienia osady aktywnej.
+## Dotyczy także własnej osady - inaczej nie dałoby się jej wskazać jako celu transportu.
+func test_tapping_an_own_settlement_inspects_it_without_activating() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa"), _own(FixtureCells.OWN_SECOND.x, FixtureCells.OWN_SECOND.y, "Popielna")])
+	GameState.set_active_settlement(HOME_CELL)
+	var sheets := _sheets()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var camera: MapCamera = world_map.camera
+	var view_before := SceneManager.current_view
+	var centre := camera.get_viewport_rect().size / 2.0
+	for cell in [FixtureCells.OWN_SECOND, HOME_CELL]:
+		_aim(camera, centre, cell)
+		_tap(camera, centre)
+		await await_idle_frame()
+		assert_bool(sheets.is_open()).override_failure_message("tap %s nie otworzył arkusza" % cell).is_true()
+		assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
+		assert_that(GameState.active_settlement.coord).is_equal(HOME_CELL)
+		assert_str(SceneManager.current_view).is_equal(view_before)
+		assert_that(GameState.inspected_coord).is_equal(cell)

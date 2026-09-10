@@ -1,7 +1,9 @@
 class_name WorldGrid
 extends RefCounted
 
-const CELL_SIZE := 256.0
+## Rozmiar komórki w pikselach mapy. Rendering, nie kontrakt (backend pracuje w komórkach).
+## 448 zamiast 256 rozsuwa wyspy; próg prześwitu pilnuje world_map_test.
+const CELL_SIZE := 448.0
 const CHUNK_SIZE := 8
 const LAND_FREQUENCY := 0.12
 const LAND_THRESHOLD := 0.30
@@ -10,6 +12,10 @@ const BIOME_BAND := 0.15
 const DEPOSIT_CHANCE := 0.3
 const RADIUS_MIN := 60.0
 const RADIUS_MAX := 110.0
+## Przesunięcie położenia wyspy w obrębie komórki, w ułamkach komórki, na każdej osi.
+## Część kontraktu geografii (ADR 0001, Załącznik, punkt 8): wyznacza odległość podróży floty
+## (ADR 0003). Zmiana po otwarciu świata zmienia czasy podróży, więc jest migracją świata.
+const OFFSET_RANGE := 0.13
 
 
 ## Deterministyczny, 31-bitowy hash komórki; identyczny algorytm ma mieć backend.
@@ -107,6 +113,34 @@ static func _deposit_for(biome: Biome.Type, h: int) -> Dictionary:
 		var h4 := hash_cell(h3, Vector2i(i + 1, 0))
 		out[r] = float(200 + int(hash01(h4) * 800.0))
 	return out
+
+
+## Przesunięcie położenia wyspy w obrębie komórki: [offset_x, offset_y] w ułamkach komórki,
+## w pełnej precyzji double. Kontrakt geografii - ADR 0001, Załącznik, punkt 8; sole (13, 17)
+## i (19, 23) oraz mapowanie * 2.0 - 1.0 przepisane dosłownie. Nie Vector2, bo Vector2 trzyma
+## float32 i zgubiłby bity, które backend porównuje dokładnie (contract/world-parity.json).
+## Kontrakt obejmuje komórki lądu; dla morza wynik jest liczony tak samo, ale nic go nie używa.
+static func island_offset_xy(world_seed: int, cell: Vector2i) -> PackedFloat64Array:
+	var h := hash_cell(world_seed, cell)
+	var ox := (hash01(hash_cell(h, Vector2i(13, 17))) * 2.0 - 1.0) * OFFSET_RANGE
+	var oy := (hash01(hash_cell(h, Vector2i(19, 23))) * 2.0 - 1.0) * OFFSET_RANGE
+	return PackedFloat64Array([ox, oy])
+
+
+## Widok float32 przesunięcia - do renderowania i nawigacji klienta.
+static func island_offset(world_seed: int, cell: Vector2i) -> Vector2:
+	var xy := island_offset_xy(world_seed, cell)
+	return Vector2(xy[0], xy[1])
+
+
+## Położenie wyspy w jednostkach komórek: między tymi punktami liczy się odległość podróży.
+static func island_position(world_seed: int, cell: Vector2i) -> Vector2:
+	return Vector2(cell) + island_offset(world_seed, cell)
+
+
+## Środek wyspy w pikselach mapy. Rendering, nie kontrakt: CELL_SIZE zna tylko klient.
+static func island_center(world_seed: int, cell: Vector2i) -> Vector2:
+	return cell_to_world(cell) + island_offset(world_seed, cell) * CELL_SIZE
 
 
 static func cell_to_world(cell: Vector2i) -> Vector2:

@@ -75,3 +75,45 @@ func test_second_finger_does_not_steal_or_corrupt_the_first_gesture() -> void:
 	det._unhandled_input(_touch(0, hall_pos, false))
 	assert_bool(_plaque(gen, Buildings.Type.TOWN_HALL).pressed).is_false()
 	assert_bool(sheets.is_open()).is_true()
+
+
+## Pełne ustawienie od zera, żeby osada aktywna na pewno miała podaną populację.
+func _apply_home(population: int, population_max: int) -> void:
+	GameState.reset()
+	GameState.apply_world(FixtureCells.world_json())
+	GameState.apply_settlements([{
+		"x": HOME.x, "y": HOME.y, "ownerId": 7, "name": "Koralowa",
+		"resources": {}, "buildings": {},
+		"population": population, "populationMax": population_max,
+	}])
+	GameState.set_active_settlement(HOME)
+
+
+func test_population_is_shown_in_the_settlement_view() -> void:
+	_apply_home(42, 120)
+	var det := _detail()
+	assert_bool(det.pop_panel.visible).is_true()
+	assert_str(det.pop_label.text).is_equal("42 / 120")
+	assert_float(det.pop_bar.max_value).is_equal(120.0)
+	assert_float(det.pop_bar.value).is_equal(42.0)
+	assert_that(det.pop_label.get_theme_color("font_color")).is_equal(MedievalTheme.INK)
+
+
+func test_population_near_the_limit_warns_in_blood() -> void:
+	_apply_home(118, 120)
+	var det := _detail()
+	assert_that(det.pop_label.get_theme_color("font_color")).is_equal(MedievalTheme.BLOOD)
+
+
+## Osada bez limitu (0 / 0) nie jest „zapełniona” - wcześniejsza wersja w pasku ostrzegała
+## wtedy na czerwono, bo 0 >= 0 × 0,95.
+func test_zero_population_limit_does_not_warn() -> void:
+	_apply_home(0, 0)
+	var det := _detail()
+	assert_that(det.pop_label.get_theme_color("font_color")).is_equal(MedievalTheme.INK)
+
+
+func test_population_hidden_without_active_settlement() -> void:
+	GameState.reset()
+	var det := _detail()
+	assert_bool(det.pop_panel.visible).is_false()

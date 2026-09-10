@@ -2,6 +2,7 @@ extends GdUnitTestSuite
 
 const DEPART := 1788782400.0
 const ARRIVE := DEPART + 3600.0
+const SEED := FixtureCells.WORLD_SEED
 
 
 func _json() -> Dictionary:
@@ -49,8 +50,21 @@ func test_progress() -> void:
 
 func test_position_at_midpoint() -> void:
 	var f := Fleet.from_json(_json())
-	var expected := WorldGrid.cell_to_world(Vector2i(0, 0)).lerp(WorldGrid.cell_to_world(Vector2i(4, 0)), 0.5)
-	assert_that(f.position_at(DEPART + 1800.0)).is_equal(expected)
+	var expected := WorldGrid.island_center(SEED, Vector2i(0, 0)).lerp(WorldGrid.island_center(SEED, Vector2i(4, 0)), 0.5)
+	assert_that(f.position_at(DEPART + 1800.0, SEED)).is_equal(expected)
+
+
+## Trasa zaczyna się i kończy na wyspach, nie na środkach komórek obok nich.
+func test_route_starts_and_ends_on_the_islands() -> void:
+	var d := _json()
+	d["from"] = {"x": FixtureCells.FOREIGN.x, "y": FixtureCells.FOREIGN.y}
+	d["to"] = {"x": FixtureCells.HOME.x, "y": FixtureCells.HOME.y}
+	var f := Fleet.from_json(d)
+	var start := WorldGrid.island_center(SEED, FixtureCells.FOREIGN)
+	var end := WorldGrid.island_center(SEED, FixtureCells.HOME)
+	assert_that(f.position_at(DEPART - 10.0, SEED)).is_equal(start)
+	assert_that(f.position_at(ARRIVE + 10.0, SEED)).is_equal(end)
+	assert_that(f.direction(SEED)).is_equal((end - start).normalized())
 
 
 func test_is_arrived_and_remaining() -> void:
@@ -67,3 +81,10 @@ func test_mission_labels_and_icons_cover_every_mission() -> void:
 		assert_bool(Fleet.MISSION_ICONS.has(m)).override_failure_message("brak ikony %s" % m).is_true()
 	assert_str(Fleet.MISSION_LABELS["EXPEDITION"]).is_equal("Wyprawa")
 	assert_str(String(Fleet.MISSION_ICONS["ATTACK"])).is_equal("raid")
+
+
+func test_owner_name_is_read_with_unknown_fallback() -> void:
+	var d := _json()
+	d["ownerName"] = "Kormoran"
+	assert_str(Fleet.from_json(d).owner_name).is_equal("Kormoran")
+	assert_str(Fleet.from_json(_json()).owner_name).is_equal(Settlement.UNKNOWN_OWNER)

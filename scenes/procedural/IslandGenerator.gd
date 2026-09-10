@@ -155,3 +155,9 @@ func _plaque(t: int) -> SlotPlaque:
 ## (np. z WorldMap._on_tapped dla wysp w chunkach, które mogą być aktualnie niezaładowane).
 static func contains(local_pos: Vector2, island_radius: float) -> bool:
 	return local_pos.length() <= island_radius * TAP_RADIUS_FACTOR
+
+
+## Kontur wody przybrzeżnej w układzie wyspy - ten sam, który build() rysuje jako "Shallow".
+## Statyczny, żeby test prześwitu między wyspami mierzył dokładnie to, co widać na mapie.
+static func shallow_outline(seed_val: int, radius: float) -> PackedVector2Array:
+	return CoastlineGenerator.scaled(CoastlineGenerator.generate(seed_val, radius, POINTS), SHALLOW_SCALE)

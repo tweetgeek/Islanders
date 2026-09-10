@@ -19,7 +19,10 @@ func test_zoom_is_clamped() -> void:
 	cam._zoom_at(Vector2.ZERO, 100.0)
 	assert_float(cam.zoom.x).is_equal(MapCamera.ZOOM_MAX)
 	cam._zoom_at(Vector2.ZERO, 0.0001)
-	assert_float(cam.zoom.x).is_equal(MapCamera.ZOOM_MIN)
+	# is_equal_approx, nie is_equal: zoom to Vector2 (float32), a 0,15 (w przeciwieństwie do
+	# poprzedniego 0,25) nie ma dokładnej reprezentacji binarnej, więc rzut z double na float32
+	# i z powrotem różni się od stałej o ułamek promila.
+	assert_float(cam.zoom.x).is_equal_approx(MapCamera.ZOOM_MIN, 0.00001)
 
 
 func test_zoom_keeps_point_under_cursor() -> void:
