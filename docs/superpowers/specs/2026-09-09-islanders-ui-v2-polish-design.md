@@ -1,9 +1,12 @@
 # Islanders – UI v2, korekty po przeglądzie na urządzeniu
 
 Data: 2026-09-09
-Status: zatwierdzony w brainstormingu, czeka na plan implementacji
+Status: zatwierdzony w brainstormingu, uzupełniony po sesji grillowania 2026-09-10, czeka na plan implementacji
 Poprzedni spec: `2026-09-08-islanders-ui-v2-design.md`. Ten dokument go nie zastępuje; nadpisuje
-sekcje 3.3, 3.4, 3.5, 5 i 6.1 oraz decyzje o placeholderze złota i o przyciemnianiu kart.
+sekcje 3.3, 3.4, 3.5, 3.6, 5 i 6.1 oraz decyzje o placeholderze złota, o przyciemnianiu kart
+i o zasadzie „zero zewnętrznych grafik”.
+Decyzje architektoniczne: ADR 0003 (położenie wyspy wyznacza odległość podróży) i nowy punkt 8
+załącznika kontraktu w ADR 0001.
 
 Terminologia zgodna z `CONTEXT.md`. Glosariusz ma pierwszeństwo.
 
@@ -28,9 +31,16 @@ z dwoma testami mierzącymi wyrenderowaną szerokość zamiast właściwości te
 
 Ten spec obejmuje falę drugą: strukturę paska, gęstość odstępów, geometrię mapy i czytelność.
 
+Sesja grillowania 2026-09-10 zmieniła cztery rzeczy względem pierwszej wersji tego dokumentu:
+przesunięcie wyspy przestało być renderingiem i weszło do kontraktu, wyznaczając odległość
+podróży (5.2, ADR 0003); tapnięcie wyspy na mapie zawsze ją ogląda, nigdy nie aktywuje (5.5);
+właściciel osady i floty jest pokazywany pseudonimem (7); zasada „zero zewnętrznych grafik”
+została zniesiona (2).
+
 Poza zakresem: zmiana promieni zaokrągleń i wyłączanie wygładzania krawędzi (renderowanie jest
 obiektywnie ostre), zmiana promieni wysp (należą do kontraktu parytetu), nowa waluta w miejsce
-usuwanego placeholdera złota.
+usuwanego placeholdera złota, przejście ikon z glifów na grafiki (osobna decyzja o stylu),
+implementacja czasu podróży po stronie backendu (strona API, patrz ADR 0003).
 
 ## 2. Decyzje
 
@@ -42,7 +52,15 @@ usuwanego placeholdera złota.
 | Awatar kotwicy | Usuwany | Statyczny glif bez informacji, 111 px szerokości |
 | Gęstość odstępów | Jedno pokrętło `DENSITY` niezależne od `SCALE` | Zagęszcza cały interfejs bez zmniejszania tekstu i ikon; jedna liczba do korekty po ocenie na urządzeniu |
 | Rozsunięcie wysp | `CELL_SIZE` 256 → 448 | Nie należy do kontraktu parytetu, więc backend nietknięty |
-| Rozbicie siatki | Deterministyczne przesunięcie środka w obrębie komórki | Wyspy przestają czytać się jako rzędy; zakres wyliczony z warunku nienachodzenia |
+| Rozbicie siatki | Deterministyczne przesunięcie środka w obrębie komórki, ±0,13 komórki, część kontraktu | Wyspy przestają czytać się jako rzędy; zakres wyliczony z warunku nienachodzenia |
+| Odległość podróży | Między położeniami wysp, nie między komórkami (ADR 0003) | Mapa organiczna i wierna jednocześnie: to, co widać, to, co płynie flota |
+| Tapnięcie wyspy | Zawsze ogląda, także własną i aktywną osadę; nigdy nie aktywuje | Osada aktywna jest źródłem floty; wskazanie własnej osady jako celu transportu musi być możliwe |
+| Arkusz własnej osady | Dane publiczne, oznaczenie „twoja”, przycisk „Przejdź do osady” / „Wróć do osady” | Pełne dane prywatne są o jedno tapnięcie dalej, w widoku osady |
+| Właściciel | Pseudonim z `ownerName` wszędzie, własna osada „Ty” | Glosariusz: pseudonim to jedyna informacja o koncie widoczna dla innych; backend już go wysyła |
+| Podpis w pasku | Numer świata i współrzędne | Współrzędne to tożsamość wyspy; numer świata rozróżnia profile na wielu światach |
+| Gęstość i przybliżenie | Start `DENSITY` 0,7 i `ZOOM_MIN` 0,15, strojenie po przeglądzie wizualnym | Wartości wybrane z wyczucia; rozstrzyga obraz, nie argument |
+| Zewnętrzne grafiki | Zasada zniesiona, także w interfejsie gry | Decyzja właściciela po dodaniu logo aplikacji |
+| Ikony w tej fali | Zostają glifami rysowanymi kodem | Zniesienie zasady nie wybiera stylu; przejście na grafiki to osobny projekt |
 | Ostrość krawędzi | Bez zmian | Renderowanie jest ostre; miękkość w zgłoszeniu była artefaktem zrzutu |
 | Stan „nie produkuję” | Paleta i treść, nie przezroczystość | `modulate` mnoży alfę dzieci, co odbierało czytelność liczbie |
 
@@ -125,9 +143,9 @@ i przycisk przestałby się wciskać widocznie.
 
 ### 5.1 Rozsunięcie
 
-`WorldGrid.CELL_SIZE` z 256 na 448. Kontrakt parytetu (`contract/world-parity.json`) opisuje
-częstotliwości szumu, próg lądu, promienie, szansę znaleziska i kolejność zasobów; rozmiaru
-komórki tam nie ma, bo backend pracuje w komórkach. Artefakt kontraktu nie wymaga przegenerowania.
+`WorldGrid.CELL_SIZE` z 256 na 448. Rozmiaru komórki w pikselach nie ma w kontrakcie parytetu
+i nie będzie, bo backend pracuje w komórkach. Sam artefakt `contract/world-parity.json` wymaga
+jednak przegenerowania z powodu przesunięcia wysp (5.2).
 
 Konsekwencje:
 - Świat rośnie z 51 200 na 89 600 px na bok. Granice kamery liczą się z rozmiaru świata razy
@@ -141,13 +159,21 @@ Konsekwencje:
 ### 5.2 Rozbicie siatki
 
 ```gdscript
-## Przesunięcie środka wyspy w obrębie komórki, żeby wyspy nie stały w równych rzędach.
-## Deterministyczne z ziarna i komórki, z hasha innego niż lądowy, biomowy, promieniowy
-## i znaleziskowy, żeby nie korelowało z żadnym z nich.
-const OFFSET_RANGE := 0.13   ## ułamek komórki w każdą stronę
-static func island_offset(world_seed: int, cell: Vector2i) -> Vector2
-static func island_center(world_seed: int, cell: Vector2i) -> Vector2
+## Przesunięcie położenia wyspy w obrębie komórki, w ułamkach komórki. Część kontraktu
+## geografii (ADR 0001, Załącznik, punkt 8): wyznacza odległość podróży floty (ADR 0003).
+const OFFSET_RANGE := 0.13
+static func island_offset(world_seed: int, cell: Vector2i) -> Vector2      ## ułamki komórki
+static func island_position(world_seed: int, cell: Vector2i) -> Vector2    ## jednostki komórek
+static func island_center(world_seed: int, cell: Vector2i) -> Vector2      ## piksele, rendering
 ```
+
+Wzór przesunięcia, z solami `(13, 17)` i `(19, 23)`, jest spisany w załączniku ADR 0001, punkt 8,
+bo tam backend szuka formuł. `island_position` to `cell + offset` w jednostkach komórek i jest
+kontraktem; `island_center` przelicza to na piksele przez `CELL_SIZE` i jest renderowaniem.
+
+Przesunięcie przestało być kosmetyką: jest zamrożoną stałą rozgrywki, jak próg lądu. Odległość
+między bezpośrednimi sąsiadami w poziomie waha się od 0,74 do 1,26 komórki, co jest celową cechą
+mapy — położenie wyspy ma znaczenie.
 
 Zakres wyliczony z warunku, nie dobrany na oko:
 
@@ -175,6 +201,12 @@ osad, etykiety osad oraz trasy flot.
 świata, ale nie jego ziarno. Bez tego linia trasy kończyłaby się obok wyspy, a nie na niej.
 Konsumenci do poprawki: `FleetRenderer` i skok kamery po tapnięciu karty floty w `Sheets`.
 
+`SeaNavigation.distance` i `travel_time` liczą między `island_position` startu i celu, a kierunek
+wiatru to wektor między nimi, więc obie dostają parametr `world_seed`. Dziś nie mają żadnego
+wywołania w kliencie, bo czas przybycia przychodzi z serwera, ale będą podstawą podglądu czasu
+podróży przy wysyłaniu flot i muszą zgadzać się z backendem. Przy zerowym przesunięciu wynik
+jest identyczny z dzisiejszym, co test przypina.
+
 ### 5.4 Dwie usterki ze zgłoszonego zrzutu
 
 **Nachodzące etykiety osad** rozwiązują się skutkiem 5.1: etykieta ma 240 px szerokości, a
@@ -184,6 +216,26 @@ ten stan, żeby nie wrócił.
 **Plakietka „OSADA” zasłaniająca wyspę** schodzi do samej ikony w kwadracie `px(46)`, spójnie
 z przyciskami doku i przybliżania. Napis jest zbędny przy strzałce powrotu, a plakietka przestaje
 zajmować `px(110)` szerokości mapy.
+
+### 5.5 Tapnięcie wyspy i arkusz własnej osady
+
+Tapnięcie dowolnej wyspy na mapie czyni ją oglądaną i otwiera arkusz oglądanej wyspy. Dotyczy to
+także własnej osady, w tym aktywnej. Tapnięcie nigdy nie zmienia osady aktywnej; zmienia ją
+wyłącznie świadome przełączenie (glosariusz, **Active Settlement**).
+
+Powód: osada aktywna jest źródłem floty. Przy dzisiejszym zachowaniu, w którym tapnięcie własnej
+osady od razu ją aktywuje, nie da się wskazać własnej osady jako celu floty z misją `TRANSPORT`,
+bo tapnięcie celu zamienia go w źródło.
+
+`InspectSheet` dostaje trzeci tryb, obok cudzej osady i wyspy niczyjej:
+
+| Element | Własna osada nieaktywna | Własna osada aktywna |
+|---|---|---|
+| Nagłówek | nazwa, biom | nazwa, biom |
+| Podpis | współrzędne · „twoja osada” | współrzędne · „twoja osada” |
+| Akcja | `Primary` „Przejdź do osady”: aktywuje i przełącza do widoku osady | `Primary` „Wróć do osady”: tylko przełącza widok |
+
+Dane prywatne nie są powielane w arkuszu; są o jedno tapnięcie dalej, w widoku osady.
 
 ## 6. Czytelność kart i ikony
 
@@ -223,7 +275,21 @@ jest inne: nagłówki arkuszy i przyciski doku na `OAK`, chipy zasobów na `OAK_
 wartość zachowuje dzisiejszy wygląd wszędzie, gdzie nikt jej nie ustawi. Końcowy przegląd całej
 gałęzi wskazał tę zmianę jako pracę na później; ikona kamienia czyni ją warunkiem.
 
-## 7. Zmiany interfejsu i konsumenci
+## 7. Pseudonim właściciela
+
+Glosariusz definiuje pseudonim jako jedyną informację o koncie widoczną dla innych graczy.
+Interfejs pokazywał zamiast niego numeryczny identyfikator konta w trzech miejscach: etykieta
+osady na mapie, podpis arkusza oglądanej wyspy i skład obcej floty w karcie.
+
+Backend wysyła już `ownerName` w publicznym widoku osady i w widoku floty. `Settlement.from_json`
+i `Fleet.from_json` czytają to pole, a wszystkie trzy miejsca pokazują pseudonim. Własna osada
+nadal pokazuje „Ty”. Atrapa danych (`fixtures/settlements.json`, `fixtures/fleets.json`) dostaje
+to pole, a specyfikacja szkieletu klienta, sekcja 4.2, dostaje korektę opisu danych publicznych.
+
+Do przekazania stronie API: publiczny widok osady nadal wysyła `ownerId`, co w świetle tej samej
+reguły glosariusza jest wyciekiem identyfikatora konta.
+
+## 8. Zmiany interfejsu i konsumenci
 
 | Znika | Pojawia się | Konsumenci do poprawki |
 |---|---|---|
@@ -235,8 +301,13 @@ gałęzi wskazał tę zmianę jako pracę na później; ikona kamienia czyni ją
 | — | `WorldGrid.island_offset`, `island_center`, `OFFSET_RANGE` | `world_grid_test`, `world_map_test` |
 | `Fleet.position_at(now)` | `Fleet.position_at(now, world_seed)` | `fleet_test`, `FleetRenderer`, `Sheets` |
 | — | `Icon.knockout` | `icon_test` |
+| — | `WorldGrid.island_position` | `world_grid_test`, `tools/world_parity_dump.gd` |
+| `SeaNavigation.distance(a, b)`, `travel_time(a, b, …)` | wersje z `world_seed` | `sea_navigation_test` |
+| — | `Settlement.owner_name`, `Fleet.owner_name` | `settlement_test`, `fleet_test`, fixtures |
+| tapnięcie własnej osady aktywuje | tapnięcie zawsze ogląda | `world_map_test`, `tools/smoke_probe.gd` |
+| — | tryb własnej osady w `InspectSheet` | `inspect_sheet_test` |
 
-## 8. Testy
+## 9. Testy
 
 - **Pasek**: wysokość nie przekracza 16 % wysokości ekranu; wiersz tożsamości mieści nazwę,
   odznakę i podpis (rozszerzenie testu przeglądowego z fali pierwszej); populacji nie ma
@@ -253,19 +324,35 @@ gałęzi wskazał tę zmianę jako pracę na później; ikona kamienia czyni ją
   nieprodukowana ma `VELLUM`, liczbę i ikonę `INK_SOFT` oraz puste tempo; żadna karta nie jest przyciemniana
   przezroczystością (`modulate.a == 1.0`); `Icon.knockout` ma domyślną wartość i ustawiona
   wartość dochodzi do rysowania.
+- **Kontrakt położenia**: `island_offset` odtwarza wzór z ADR 0001, punkt 8, dla znanych komórek
+  (złote wartości); `contract/world-parity.json` zawiera `offsetX` i `offsetY` każdej komórki lądu
+  i test parytetu klienta je sprawdza.
+- **Odległość podróży**: przy zerowym przesunięciu `SeaNavigation.distance` daje dzisiejszą
+  odległość między komórkami; przy przesunięciu liczy między położeniami; jest symetryczna;
+  kierunek wiatru liczy się po tym samym wektorze.
+- **Tapnięcie**: tapnięcie własnej osady, także aktywnej, otwiera arkusz oglądanej wyspy i nie
+  zmienia osady aktywnej; „Przejdź do osady” zmienia osadę aktywną i przełącza widok; „Wróć do
+  osady” tylko przełącza widok.
+- **Pseudonim**: `ownerName` jest czytany przez osadę i flotę; trzy miejsca wyświetlania pokazują
+  pseudonim, a nigdy numeryczny identyfikator; własna osada pokazuje „Ty”.
 - **Weryfikacja wizualna**: `tools/capture_probe.gd` przy oknie równym viewportowi, po każdej
   sekcji. Raportuje wysokość paska w procentach i szerokości wszystkich etykiet, więc pilnuje
   budżetu z 3.2 i klasy błędu z fali pierwszej.
 
-## 9. Sekcje UI v2 do zaktualizowania
+## 10. Sekcje UI v2 do zaktualizowania
 
 Po wdrożeniu poprzedni spec wymaga korekt w: 3.3 (dok, ikona zamiast plakietki z napisem),
 3.4 (widok osady zyskuje populację), 3.5 (warstwa UI mapy, `ZOOM_MIN`), 5 (struktura paska,
 budżet wysokości, usunięte węzły), 6.1 (`px()` kontra `gap()`) oraz w tabeli decyzji
-(placeholder złota, przyciemnianie kart). Do tego sekcja 6.4, która wciąż nazywa węzeł
-`ModalBody`, przemianowany na `Body` jeszcze w poprzedniej fali.
+(placeholder złota, przyciemnianie kart, zasada o grafikach). Do tego 3.6 (tryb własnej osady
+w arkuszu, tapnięcie zawsze ogląda) oraz sekcja 6.4, która wciąż nazywa węzeł `ModalBody`,
+przemianowany na `Body` jeszcze w poprzedniej fali.
 
-## 10. Kolejność implementacji
+Poza specyfikacją UI v2: specyfikacja szkieletu klienta, sekcja 4.2 (dane publiczne osady
+zawierają pseudonim) i `docs/architecture/data-flow.html`, który ta fala dezaktualizuje w pasku,
+grupach, sygnałach i polach kontraktu.
+
+## 11. Kolejność implementacji
 
 1. `MedievalTheme.DENSITY` i `gap()`, z przeniesieniem odstępów w motywie; testy zasady podziału.
 2. Przeniesienie odstępów na `gap()` w pasku, arkuszach, doku i warstwie UI mapy.
@@ -276,4 +363,9 @@ budżet wysokości, usunięte węzły), 6.1 (`px()` kontra `gap()`) oraz w tabel
 7. `island_offset` i `island_center`; rozmieszczanie, pierścienie, etykiety, trafianie,
    `Fleet.position_at` z ziarnem; testy trafiania i etykiet.
 8. Ikona powrotu na mapie zamiast plakietki z napisem.
-9. Aktualizacja sekcji poprzedniego specu z listy 9; przegląd wizualny sondą i przez człowieka.
+9. `island_position` i wzór z kontraktu; `SeaNavigation` na położeniach; przegenerowanie
+   `contract/world-parity.json` z `offsetX` i `offsetY`.
+10. Tapnięcie zawsze ogląda; tryb własnej osady w `InspectSheet` z akcją przejścia.
+11. `ownerName` w osadzie, flocie, fixtures i trzech miejscach wyświetlania.
+12. Aktualizacja sekcji z listy 10 i dokumentu architektury; przegląd wizualny sondą i przez
+    człowieka; strojenie `DENSITY` i `ZOOM_MIN` osobnym commitem.

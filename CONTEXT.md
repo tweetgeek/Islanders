@@ -19,7 +19,7 @@ Pojedyncze pole siatki świata o współrzędnych całkowitych `(x, y)`. Komórk
 _Avoid_: tile, pole, pozycja
 
 **Island** (wyspa):
-Ląd zajmujący jedną komórkę. Tożsamością wyspy jest para świat i współrzędne komórki `(x, y)`; wyspa nie ma osobnego identyfikatora liczbowego. Kształt i biom wyspy wynikają deterministycznie z seeda świata i współrzędnych.
+Ląd zajmujący jedną komórkę. Tożsamością wyspy jest para świat i współrzędne komórki `(x, y)`; wyspa nie ma osobnego identyfikatora liczbowego. Kształt, biom i położenie wyspy w obrębie jej komórki wynikają deterministycznie z seeda świata i współrzędnych.
 _Avoid_: island id, landmass, tile
 
 ### Zasoby
@@ -81,7 +81,7 @@ Publiczna, unikalna nazwa gracza, widoczna dla wszystkich jako właściciel osad
 _Avoid_: username, display name, login, handle
 
 **Active Settlement** (osada aktywna):
-Osada gracza, w kontekście której działa interfejs: jej zasoby widać w HUD i z niej wysyła się floty. Zawsze należy do gracza.
+Osada gracza, w kontekście której działa interfejs: jej zasoby widać w HUD i z niej wysyła się floty. Zawsze należy do gracza i zmienia się tylko przez świadome przełączenie, nigdy przez samo obejrzenie wyspy.
 _Avoid_: selected island, current island, focused settlement
 
 **Inspected Island** (oglądana wyspa):
@@ -127,7 +127,7 @@ Jeden wektor dla całego świata, zmieniany okresowo przez serwer. Wpływa na cz
 _Avoid_: weather, current, wind field
 
 **Travel Time** (czas podróży):
-Czas między wypłynięciem a przybyciem floty, wyliczany raz przy wypłynięciu z odległości między wyspami, prędkości najwolniejszego statku i wiatru.
+Czas między wypłynięciem a przybyciem floty, wyliczany raz przy wypłynięciu z odległości między położeniami wysp, prędkości najwolniejszego statku i wiatru.
 _Avoid_: ETA, duration, flight time
 
 **Settler** (osadnik):

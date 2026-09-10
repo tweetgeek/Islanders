@@ -9,7 +9,7 @@ Mapa świata w grze typu Tribal Wars jest stała, zmienia się tylko stan osad. 
 
 ## Konsekwencje
 
-- Algorytm placementu i promienia wyspy jest częścią kontraktu klient–serwer (patrz Załącznik); zmiana po otwarciu świata to migracja całego świata. Backend NestJS musi mieć identyczną implementację `WorldGrid` (ten sam szum, ten sam hash). Wygląd narysowanego wybrzeża (`CoastlineGenerator`) jest czysto renderingowy i NIE wchodzi w ten kontrakt — patrz Załącznik, sekcja „Poza zakresem kontraktu”.
+- Algorytm placementu i promienia wyspy, w tym położenia wyspy w obrębie komórki (Załącznik, punkt 8; ADR 0003), jest częścią kontraktu klient–serwer (patrz Załącznik); zmiana po otwarciu świata to migracja całego świata. Backend NestJS musi mieć identyczną implementację `WorldGrid` (ten sam szum, ten sam hash). Wygląd narysowanego wybrzeża (`CoastlineGenerator`) jest czysto renderingowy i NIE wchodzi w ten kontrakt — patrz Załącznik, sekcja „Poza zakresem kontraktu”.
 - Mgła wojny na poziomie geografii jest niemożliwa, bo klient zna wszystkie wyspy; tajemnicą pozostaje wyłącznie stan osad.
 - Nowy rodzaj celu floty na komórce morza wymagałby rozszerzenia siatki o trzeci stan komórki, czego celowo nie robimy.
 
@@ -40,7 +40,8 @@ h = ((h ^ (h >> 13)) * 1274126177) & 0x7fffffff
 Stałe `31`, `1000003`, `1000033`, `13`, `1274126177` i maska `0x7fffffff` są częścią kontraktu
 — nie „magicznymi liczbami do wyczyszczenia”. `hash_cell` jest też używany rekurencyjnie do
 generowania podhashy dla znaleziska (patrz punkt 4), z konkretnymi wektorami-solami
-`(7, 11)`, `(3, 5)`, `(1, 1)`, `(i + 1, 0)` — to też trzeba przepisać dosłownie.
+`(7, 11)`, `(3, 5)`, `(1, 1)`, `(i + 1, 0)`, oraz dla położenia wyspy w obrębie komórki
+(punkt 8) z solami `(13, 17)` i `(19, 23)` — to też trzeba przepisać dosłownie.
 
 Wynik `h` jest też przypisywany wprost jako `Island.seed_val` (patrz `WorldGrid.island_at`) —
 to ta sama liczba, której backend musi liczyć dla promienia i znaleziska (punkty 6 i 7), a nie
@@ -200,6 +201,36 @@ znalezisko każdej wyspy w każdym świecie** — bez zmiany jednej linijki logi
 akurat nie ma znaczenia — ale `ResourceTypes.ALL` ma i backend musi trzymać identyczną kolejność
 tej listy.
 
+### 8. Położenie wyspy w obrębie komórki (ADR 0003)
+
+Tylko dla komórek lądu. Dla `h = hash_cell(world_seed, cell)` z punktu 1 — tej samej liczby,
+z której liczą się promień (punkt 6) i znalezisko (punkt 7):
+
+```
+hx = hash_cell(h, Vector2i(13, 17))
+hy = hash_cell(h, Vector2i(19, 23))
+offset_x = (hash01(hx) * 2.0 - 1.0) * OFFSET_RANGE
+offset_y = (hash01(hy) * 2.0 - 1.0) * OFFSET_RANGE
+
+położenie = (cell.x + offset_x, cell.y + offset_y)     # w jednostkach komórek
+```
+
+`OFFSET_RANGE = 0.13`. Mapowanie `* 2.0 - 1.0` jest tym samym, którego używa `lattice`
+w punkcie 3, więc przesunięcie mieści się w `[-OFFSET_RANGE, +OFFSET_RANGE)`.
+
+Sole `(13, 17)` i `(19, 23)` są kontraktem. Nie mogą pokrywać się z żadną inną solą stosowaną
+bezpośrednio do `h` — dziś jedyną taką jest `(7, 11)` ze znaleziska w punkcie 7 — inaczej
+przesunięcie korelowałoby z obecnością znaleziska.
+
+Położenie jest wyrażone w tych samych jednostkach co współrzędne komórki. Przy zerowym
+przesunięciu `położenie = (cell.x, cell.y)` i odległość między dwoma położeniami sprowadza się
+dokładnie do euklidesowej odległości między komórkami, jak przed tą zmianą. Odległość podróży
+floty (ADR 0003) to euklidesowa odległość między położeniami wyspy startu i wyspy celu, a
+kierunek, po którym liczy się wpływ wiatru, to wektor między tymi samymi położeniami.
+
+`contract/world-parity.json` zawiera `offsetX` i `offsetY` dla każdej komórki lądu, w tych samych
+jednostkach, żeby backend mógł sprawdzić ten punkt komórka po komórce jak pozostałe.
+
 ### Poza zakresem kontraktu (geografii)
 
 `CELL_SIZE`, `CHUNK_SIZE`, `world_to_cell`/`cell_to_world`, sposób grupowania w chunki,
@@ -207,6 +238,10 @@ tej listy.
 kolejność wizualna) i kształt narysowanego wybrzeża (`CoastlineGenerator`, patrz punkty 1 i 2)
 to sprawy renderowania i UI klienta, nie geografii — backend nie musi ich znać, żeby wysyłać
 zgodne z klientem `(worldId, x, y)`.
+
+To samo dotyczy przeliczenia położenia wyspy z punktu 8 na piksele: środek rysowanej wyspy to
+`cell_to_world(cell)` plus przesunięcie pomnożone przez `CELL_SIZE`, i jest to renderowanie.
+Kontraktem jest wyłącznie przesunięcie w ułamkach komórki.
 
 **To nie znaczy, że mapowanie biom → dozwolone budynki wydobywcze (`Biome.extraction_buildings`,
 ADR 0002) jest wyłącznie sprawą UI.** Backend musi znać to samo mapowanie, żeby odrzucać próby
