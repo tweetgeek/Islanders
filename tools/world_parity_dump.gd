@@ -285,6 +285,10 @@ func _cell_json(world_seed: int, x: int, y: int) -> String:
 		fields.append("\"biomeType\":\"%s\"" % Biome.key(island.biome))
 		fields.append("\"radius\":%s" % _num(island.radius))
 		fields.append("\"deposit\":%s" % _deposit_json(island.deposit))
+		# ADR 0001, Załącznik, punkt 8: z wersji double, nie z Vector2 (float32).
+		var offset := WorldGrid.island_offset_xy(world_seed, cell)
+		fields.append("\"offsetX\":%s" % _num(offset[0]))
+		fields.append("\"offsetY\":%s" % _num(offset[1]))
 	return "{%s}" % ",".join(fields)
 
 
@@ -308,6 +312,7 @@ func _constants_json() -> String:
 	out += "\"radiusMin\":%s," % _num(WorldGrid.RADIUS_MIN)
 	out += "\"radiusMax\":%s," % _num(WorldGrid.RADIUS_MAX)
 	out += "\"depositChance\":%s," % _num(WorldGrid.DEPOSIT_CHANCE)
+	out += "\"offsetRange\":%s," % _num(WorldGrid.OFFSET_RANGE)
 	out += "\"resourceOrder\":[%s]" % ",".join(resources)
 	out += "}"
 	return out

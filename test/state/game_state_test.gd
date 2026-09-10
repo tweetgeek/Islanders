@@ -196,3 +196,10 @@ func test_finish_loading_still_activates_home_when_present() -> void:
 	assert_object(gs.active_settlement).is_not_null()
 	assert_that(gs.active_settlement.coord).is_equal(Vector2i(80, 73))
 	assert_that(received).is_equal([true])
+
+
+func test_world_seed_falls_back_to_zero_without_a_world() -> void:
+	var gs := _state()
+	assert_int(gs.world_seed()).is_equal(1337)
+	var empty: Node = auto_free(GameStateScript.new())
+	assert_int(empty.world_seed()).is_equal(0)

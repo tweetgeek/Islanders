@@ -4,8 +4,10 @@ Ten plik jest kontraktem geografii klient-serwer z ADR 0001
 (`docs/adr/0001-deterministic-world-geography.md`) i sekcji 4 `api-guidelines.md` w
 `IslandersAPI`. Zawiera zrzut tego, co `WorldGrid` (`scripts/core/WorldGrid.gd`) produkuje dla
 kilku ziaren świata na siatce co najmniej 200 × 200 komórek: dla każdej komórki `hash`, `land`
-i `biome` (surowe wartości szumu), a dla komórek będących wyspami dodatkowo `radius` i
-`deposit`. Wszystkie liczby zmiennoprzecinkowe są zapisane z pełną precyzją IEEE 754 - siedemnaście
+i `biome` (surowe wartości szumu), a dla komórek będących wyspami dodatkowo `radius`, `deposit`
+oraz `offsetX` i `offsetY` - przesunięcie położenia wyspy w obrębie komórki w ułamkach komórki
+(ADR 0001, Załącznik, punkt 8; ADR 0003). W `constants` jest też `offsetRange`. Wszystkie liczby
+zmiennoprzecinkowe są zapisane z pełną precyzją IEEE 754 - siedemnaście
 cyfr ZNACZĄCYCH (nie miejsc po przecinku - to nie to samo, patrz niżej) - nie zaokrąglone do
 mniejszej precyzji, bo zaokrąglenie ukryłoby dokładnie ten dryf między klientem a backendem,
 który ten plik ma wykrywać.
@@ -36,6 +38,11 @@ między klientem a serwerem wyszedłby dopiero wtedy, gdy gracz zobaczyłby swoj
 Uruchamia `tools/world_parity_dump.gd` i nadpisuje `contract/world-parity.json`. Uruchamianie
 tego narzędzia bez żadnej zmiany w `WorldGrid.gd` musi dać bit-identyczny plik - jeśli nie daje,
 generator albo `WorldGrid` mają niedeterminizm, którego nie powinno tu być.
+
+Przy zmianie, która dokłada pola, a nie zmienia geografii (tak jak przy dodaniu `offsetX` i
+`offsetY`), porównaj stary i nowy plik niezależnym parserem: każde dotychczasowe pole musi zostać
+bit w bit identyczne. Przykład takiej weryfikacji jest w planie
+`docs/superpowers/plans/2026-09-10-islanders-ui-v2-polish.md`, Task 6.
 
 ## Co oznacza zmiana tego pliku
 

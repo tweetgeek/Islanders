@@ -146,3 +146,55 @@ func test_golden_radius_and_deposit_for_fixture_seed() -> void:
 	assert_int(d.biome).is_equal(Biome.Type.TROPICAL)
 	assert_float(d.radius).is_equal_approx(90.173878285200360, 0.0000001)
 	assert_that(d.deposit).is_equal({"stone": 831.0, "iron": 778.0})
+
+
+## Złote wartości policzone niezależnie w Pythonie ze wzoru w ADR 0001, Załącznik, punkt 8.
+## Tolerancja 1e-15 zamiast równości: literał float w źródle GDScript przechodzi przez parser
+## silnika, który dla części wartości myli się o 1 ULP (patrz tools/world_parity_dump.gd).
+## Zgodność bit w bit sprawdza weryfikacja artefaktu kontraktu przy regeneracji (Task 6, Step 9).
+## NIE aktualizować tych liczb bez świadomej decyzji o migracji świata - to jest kontrakt.
+func test_golden_island_offsets_for_fixture_seed() -> void:
+	var cases := {
+		Vector2i(80, 73): [0.07367142999900071, -0.020720495653042865],
+		Vector2i(81, 73): [0.1028230238832817, -0.04189567302887978],
+		Vector2i(79, 73): [0.024799640251823716, -0.0904816628360148],
+		Vector2i(87, 72): [0.07741281103227741, 0.04090836414509842],
+	}
+	for cell: Vector2i in cases:
+		var got := WorldGrid.island_offset_xy(SEED, cell)
+		var want: Array = cases[cell]
+		assert_float(got[0]).override_failure_message("offset_x %s" % cell).is_equal_approx(want[0], 1e-15)
+		assert_float(got[1]).override_failure_message("offset_y %s" % cell).is_equal_approx(want[1], 1e-15)
+
+
+func test_island_offset_is_deterministic_and_within_range() -> void:
+	for y in range(60, 90):
+		for x in range(60, 90):
+			var cell := Vector2i(x, y)
+			var a := WorldGrid.island_offset_xy(SEED, cell)
+			assert_that(WorldGrid.island_offset_xy(SEED, cell)).is_equal(a)
+			for v in a:
+				assert_float(v).is_greater_equal(-WorldGrid.OFFSET_RANGE)
+				assert_float(v).is_less(WorldGrid.OFFSET_RANGE)
+
+
+## Sole muszą różnić się od siebie: gdyby obie osie brały tę samą, wyspy przesuwałyby się
+## wyłącznie po przekątnej.
+func test_island_offset_axes_are_independent() -> void:
+	var differ := 0
+	for x in range(60, 90):
+		var o := WorldGrid.island_offset_xy(SEED, Vector2i(x, 73))
+		if not is_equal_approx(o[0], o[1]):
+			differ += 1
+	assert_int(differ).is_greater(25)
+
+
+func test_island_position_and_center_follow_the_offset() -> void:
+	var cell := Vector2i(80, 73)
+	var off := WorldGrid.island_offset(SEED, cell)
+	assert_that(WorldGrid.island_position(SEED, cell)).is_equal(Vector2(cell) + off)
+	assert_that(WorldGrid.island_center(SEED, cell)).is_equal(WorldGrid.cell_to_world(cell) + off * WorldGrid.CELL_SIZE)
+	# float32 widok nie odjeżdża od double o więcej niż precyzję float32
+	var xy := WorldGrid.island_offset_xy(SEED, cell)
+	assert_float(off.x).is_equal_approx(xy[0], 1e-6)
+	assert_float(off.y).is_equal_approx(xy[1], 1e-6)
