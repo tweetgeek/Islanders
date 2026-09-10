@@ -1,7 +1,7 @@
 # Islanders – UI v2, korekty po przeglądzie na urządzeniu
 
 Data: 2026-09-09
-Status: zatwierdzony w brainstormingu, uzupełniony po sesji grillowania 2026-09-10 i przy planowaniu;
+Status: wdrożony na gałęzi `feat/ui-polish`; strojenie `DENSITY` i `ZOOM_MIN` po przeglądzie wizualnym
 plan: `docs/superpowers/plans/2026-09-10-islanders-ui-v2-polish.md`
 Poprzedni spec: `2026-09-08-islanders-ui-v2-design.md`. Ten dokument go nie zastępuje; nadpisuje
 sekcje 3.4, 3.5, 4.2, 4.3, 5, 6.4 i 7 oraz decyzje o placeholderze złota, o przyciemnianiu kart

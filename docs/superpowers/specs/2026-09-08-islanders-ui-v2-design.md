@@ -36,13 +36,16 @@ licznik rolujący zasobów, akcje na wyspie (wyprawa, kolonizacja, atak), emoji.
 | Motyw | `MedievalTheme.install()` w `Main._ready()`: `build()` scalany z domyślnym motywem `ThemeDB`, bez pliku `.theme` | Brak binariów w repo, testowalne headless; `CanvasLayer` i `Node2D` przerywają dziedziczenie motywu, więc przypięcie do korzenia by nie działało |
 | Fonty | Cinzel (font zmienny, waga 700 przez `FontVariation`), Spectral Regular i SemiBold (OFL) w `res://ui/fonts/` | Wierność projektowi; licencja pozwala na dystrybucję; Google Fonts nie publikuje statycznego Cinzel Bold |
 | Dotyk | `emulate_mouse_from_touch = true` | Wbudowany `Button` reaguje tylko na zdarzenia myszy; bez emulacji przyciski nie działają na telefonie |
-| Ikony | Klasa `Icon` z `_draw()`, płaskie glify z palety | Domyślny font Godota nie renderuje emoji; zero zewnętrznych grafik |
-| Zasoby w HUD | Pięć kart `ResCard` plus placeholder złota | Domena ma pięć zasobów bez złota; miejsce na przyszłą walutę |
+| Ikony | Klasa `Icon` z `_draw()`, płaskie glify z palety | Domyślny font Godota nie renderuje emoji; zasada „zero zewnętrznych grafik” zniesiona, ikony zostają glifami do osobnej decyzji |
+| Zasoby w HUD | Pięć kart `ResCard`, bez placeholdera złota | Domena ma pięć zasobów bez złota |
 | Profil w HUD | Nazwa osady aktywnej, odznaka biomu, podpis ze światem i współrzędnymi | Gracz nie ma poziomu ani nazwy w domenie |
 | Cudza / niczyja wyspa | Arkusz `InspectSheet` nad mapą | Nie wyrzuca gracza z mapy |
 | Koszty w arkuszu budynku | Węzły istnieją, ukryte, metody `refresh_*` publiczne | Kontrakt API ich nie ma; scena gotowa na przyszłość |
 | Skala | `MedievalTheme.SCALE = 2.77` (1080 / 390) | Projekt jest dla 390 px, viewport ma 1080 px |
+| Gęstość | `gap()` z `DENSITY` obok `px()` | Zagęszczenie interfejsu niezależnie od skali fontów i ikon |
 | Środowisko pracy | Osobny git worktree w `.worktree/` | Życzenie użytkownika; `.worktree/` w `.gitignore` |
+
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
 
 ## 3. Struktura scen i nawigacja
 
@@ -110,10 +113,17 @@ IslandDetail (Node2D)                              IslandDetail.gd
 ├── Generator (IslandGenerator, radius = 400, show_slots = true)
 ├── Camera (Camera2D)
 └── UI (CanvasLayer, layer 1)
-    └── HintPanel (PanelContainer, wariacja Plaque, lewy dolny róg nad dockiem)
-        └── Label (Caption): "Dotknij slotu, żeby otworzyć budynek"
+    └── StatusRow (HBoxContainer, lewy dolny róg nad dockiem)
+        ├── PopPanel (PanelContainer, wariacja Plaque)
+        │   └── HBox: PopIcon (Icon "people", INK_SOFT) · PopBar (ProgressBar) · PopLabel (Label, Amount, "42 / 120")
+        └── HintPanel (PanelContainer, wariacja Plaque)
+            └── Label (Caption): "Dotknij slotu, żeby otworzyć budynek"
 ```
 
+- `PopLabel` ma kolor `BLOOD`, gdy `population >= population_max * 0.95`, inaczej `INK`; przy
+  `population_max == 0` ostrzeżenia nie ma. `StatusRow` trzyma `PopPanel` i `HintPanel` we
+  wspólnym kontenerze, żeby plakietka populacji nie przeskakiwała, gdy podpowiedź znika po
+  pierwszym otwarciu budynku.
 - Pokazuje wyłącznie `GameState.active_settlement`. Słucha `active_settlement_changed` oraz
   `settlement_updated(coord)` dla współrzędnych osady aktywnej; każdy z nich przebudowuje
   generator (`set_settlement`, `build()`).
@@ -127,13 +137,15 @@ IslandDetail (Node2D)                              IslandDetail.gd
   `Sheets.open_building(settlement, building)` i ukrywa `HintPanel` na stałe dla tej
   instancji widoku.
 
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
+
 ### 3.5 Mapa `WorldMap.tscn`
 
 ```
 WorldMap (Node2D)                                  WorldMap.gd
 ├── Water, Chunks, Labels, Fleets, Camera          bez zmian
 └── UI (CanvasLayer, layer 1)
-    ├── BackPlaque (Button, ToolButton, lewy górny róg pod HUD, Icon "back" + tekst "OSADA")
+    ├── BackPlaque (Button, ToolButton, lewy górny róg pod HUD, sam Icon "back" w kwadracie px(46), tooltip_text "Wróć do osady")
     ├── CoordPanel (PanelContainer, wariacja Chip, prawy górny róg pod HUD)
     │   └── Label: "X 10 · Y 15 · zoom 0.8"
     └── ZoomControls (VBoxContainer, prawy dolny róg nad safe area)
@@ -142,6 +154,9 @@ WorldMap (Node2D)                                  WorldMap.gd
 ```
 
 - `BackPlaque` woła `SceneManager.show_island_detail()`.
+- `MapCamera.ZOOM_MIN = 0.15`.
+- Wyspy w chunkach, pierścienie osad, etykiety i trafianie liczone od
+  `WorldGrid.island_center(world_seed, cell)`, nie od środka komórki.
 - `CoordPanel` odświeżany w `_process`: komórka pod środkiem ekranu
   (`WorldGrid.world_to_cell(camera.position)`) i `camera.zoom.x` z jednym miejscem po przecinku.
 - `ZoomIn` i `ZoomOut` wołają `MapCamera.zoom_by(1.25)` i `zoom_by(0.8)`; `zoom_by(factor)`
@@ -160,9 +175,11 @@ WorldMap (Node2D)                                  WorldMap.gd
   (żeby dało się z niego przeciągać mapę), więc martwa strefa musi być po stronie odbiorcy;
   przeciąganie idzie inną drogą i pozostaje nietknięte. `MapCamera` nadal nie wie nic
   o wyspach ani o HUD.
-- Tap (`_on_tapped`): trafienie w wyspę jak dziś. Własna osada: `set_active_settlement(cell)`
-  i `SceneManager.show_island_detail()`. Cudza osada albo wyspa niczyja: `GameState.inspect(cell)`
-  i `Sheets.open_inspect(cell)`. `Sheets` nie słucha `inspected_island_changed`; jedna droga.
+- Tap (`_on_tapped`): trafienie w wyspę jak dziś. Tapnięcie zawsze woła `GameState.inspect(cell)`
+  i `Sheets.open_inspect(cell)`, także dla własnej i aktywnej osady; nigdy nie zmienia osady
+  aktywnej. `Sheets` nie słucha `inspected_island_changed`; jedna droga.
+
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
 
 ### 3.6 Zarządca arkuszy `Sheets.tscn`
 
@@ -220,6 +237,22 @@ Pliki `.import` i `.uid` śledzone w git.
 - `const SCALE := 2.77`. `flat()` i `plaque()` mnożą promień, szerokość obramowania,
   marginesy i cień przez `SCALE`. Rozmiary fontów w `build()` = wartość z projektu × `SCALE`,
   zaokrąglone do całości.
+- Obok `SCALE`: `const DENSITY := 0.7` i `static func gap(v: float) -> int`
+  (`roundf(v * SCALE * DENSITY)`), niezależne pokrętło gęstości odstępów. Zasada podziału:
+  liczba jest przestrzenią **między** rzeczami (`gap()`) albo rozmiarem **samej** rzeczy (`px()`):
+
+  | Przez `gap()` | Przy `px()` |
+  |---|---|
+  | marginesy wewnętrzne kart, chipów i arkuszy | rozmiary fontów |
+  | separacje kontenerów | boki ikon |
+  | margines paska i warstwy UI mapy | wysokości przycisków |
+  | odstępy w doku i w kolumnie przybliżania | promienie zaokrągleń, grubości obramowań |
+  | separacja siatki kosztów i listy flot | cień plakietki, separacja `HSeparator` |
+  | | geometria świata (`SlotPlaque`, etykiety mapy) |
+
+  Wciśnięty przycisk `Primary` udaje zapadnięcie o 3 px niezależnie od gęstości: margines
+  bazowy idzie przez `gap()`, a wariant wciśnięty to `gap(14) + px(3)` (góra) i
+  `gap(14) - px(3)` (dół).
 - Fonty przez `preload`. `build_and_save()` nie wchodzi. `install()` scala `build()` z `ThemeDB.get_default_theme()` i ustawia `ThemeDB.fallback_font`.
 - Wariacje, które wchodzą: `Label`: `Title`, `Caption`, `SectionHeader`, `Amount`, `Rate`,
   `Badge`. `PanelContainer`: `BarPanel`, `ResCard`, `Chip`, `Plaque`, `Sheet`, `ModalHeader`,
@@ -230,6 +263,8 @@ Pliki `.import` i `.uid` śledzone w git.
   tło `OAK`, obramowanie `BRASS` 2 × SCALE, promień 5 × SCALE, `custom_minimum_size`
   46 × 46 × SCALE ustawiane w scenach; `hover`/`pressed` z tłem `OAK_DEEP`.
 
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
+
 ### 4.3 `Icon.gd`
 
 `scenes/ui/Icon.gd`, `class_name Icon extends Control`. `@export var kind: StringName`,
@@ -237,10 +272,18 @@ Pliki `.import` i `.uid` śledzone w git.
 przeskalowanej do `size` (`min(size.x, size.y) / 24`). `custom_minimum_size` ustawia scena.
 Nieznany `kind`: kółko z obrysem i `push_warning` raz na instancję.
 
+`@export var knockout: Color = MedievalTheme.PARCHMENT` — kolor wycięć w glifie (okno ratusza,
+fałdy mapy, żyłka kamienia); domyślnie pergamin, bo `Icon` sam zostaje przy domyślnym tle
+`PARCHMENT`. `static func into_button(button, kind, color, inset, knockout_color := MedievalTheme.OAK)
+-> Icon` dodaje ikonę jako dziecko przycisku z wycięciem domyślnie dębowym, bo każdy przycisk
+z ikoną w tym projekcie to `ToolButton` na `OAK`. Nagłówki arkuszy ustawiają wycięcie na `OAK`,
+chipy zasobów na `OAK_DEEP` (`SheetStyle.chip_icon`); karty zasobów w HUD pozostają przy kolorze
+twarzy karty.
+
 | kind | glif |
 |---|---|
 | `wood` | dwie ukośne belki |
-| `stone` | sześciokąt |
+| `stone` | bryła z jedną wewnętrzną krawędzią dzielącą ją na dwie płaszczyzny |
 | `food` | łodyga z trzema kropkami |
 | `iron` | sztabka (trapez) |
 | `sulfur` | trójkąt z kropką |
@@ -262,6 +305,8 @@ Nieznany `kind`: kółko z obrysem i `push_warning` raz na instancję.
 
 Budynki wydobywcze używają ikony swojego zasobu (`Buildings.EXTRACTS`).
 
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
+
 ### 4.4 Stałe domenowe
 
 - `ResourceTypes.ICONS: Dictionary` (klucz zasobu → `kind`).
@@ -281,26 +326,23 @@ Budynki wydobywcze używają ikony swojego zasobu (`Buildings.EXTRACTS`).
 ```
 HUD (CanvasLayer, layer 10)                                        HUD.gd
 └── TopBar (PanelContainer, Top Wide, wariacja BarPanel, offset_top = SafeArea.top_inset)
-    └── Pad (MarginContainer, margines 12 × SCALE)
-        └── BarRows (VBoxContainer, separacja 9 × SCALE)
-            ├── ProfileRow (HBoxContainer, separacja 10 × SCALE)
-            │   ├── Avatar (Icon "anchor", 40 × 40 × SCALE, color CREAM)
-            │   ├── Identity (VBoxContainer, EXPAND_FILL)
-            │   │   ├── NameRow (HBoxContainer)
-            │   │   │   ├── SettlementName (Label, Title, clip_text = true)
-            │   │   │   └── BiomeBadge (Label, Badge, np. "TROPICAL")
-            │   │   └── Subtitle (Label, Caption, "Świat w1 · (10, 15)")
-            │   └── GoldPanel (PanelContainer, Chip) → HBox: Icon "gold" (BRASS) + GoldLabel "0"
-            ├── ResourceGrid (HBoxContainer, separacja 6 × SCALE)
-            │   └── ResCard × 5 (PanelContainer, ResCard, EXPAND_FILL), kolejność ResourceTypes.ALL
-            │       └── VBoxContainer
-            │           ├── TopRow (HBoxContainer): Icon zasobu (ResourceTypes.COLORS) + Amount (Label, Amount)
-            │           └── Rate (Label, Rate)
-            └── PopulationRow (HBoxContainer, separacja 8 × SCALE)
-                ├── PopIcon (Icon "people", INK_SOFT)
-                ├── PopBar (ProgressBar, EXPAND_FILL, show_percentage = false)
-                └── PopLabel (Label, Amount)
+    └── Pad (MarginContainer, gap(12))
+        └── BarRows (VBoxContainer, gap(9))
+            ├── IdentityRow (HBoxContainer, gap(10))
+            │   ├── SettlementName (Label, Title, clip_text = true, SIZE_EXPAND_FILL)
+            │   ├── BiomeBadge (Label, Badge, np. "TROPICAL")
+            │   └── Subtitle (Label, Caption, "Świat w1 · (10, 15)")
+            └── ResourceGrid (HBoxContainer, gap(6))
+                └── ResCard × 5 (PanelContainer, ResCard, EXPAND_FILL), kolejność ResourceTypes.ALL
+                    └── VBoxContainer
+                        ├── TopRow (HBoxContainer): Icon zasobu (ResourceTypes.COLORS) + Amount (Label, Amount)
+                        └── Rate (Label, Rate)
 ```
+
+Węzły `Avatar`, `GoldPanel` (z dziećmi), `PopulationRow` (z dziećmi) oraz kontenery `Identity`
+i `NameRow` wypadają: przy jednej linii tożsamości (`IdentityRow`) nie mają już racji bytu.
+Populacja przenosi się do widoku osady (3.4, `StatusRow`/`PopPanel`); pasek jej nie pokazuje.
+Budżet wysokości paska ~267 px, czyli ~13,9 % z 1920, próg testowy 16 %.
 
 - Dane i sygnały bez zmian wobec szkieletu: osada aktywna, `active_settlement_changed`,
   `settlement_updated`, `_process` z `current_resources(TimeUtil.now())`.
@@ -314,13 +356,11 @@ HUD (CanvasLayer, layer 10)                                        HUD.gd
   o coś, co naprawdę się zmienia (np. długość samego napisu), nie o szerokość viewportu.
   Sam `TimeUtil.format_amount` zostaje: używają go inne miejsca i ma własne testy.
 - `Rate`: `"+%d/h"` z `production_per_hour`. Zasób nieprodukowany (`not produces(r)`):
-  `Rate.text = ""`, karta `modulate.a = 0.45`.
-- `PopBar.max_value = max(population_max, 1)`, `value = population`. `PopLabel` w kolorze
-  `BLOOD`, gdy `population >= population_max * 0.95`, inaczej `INK`.
-- `GoldPanel`: `"0"`, niepodpięty; komentarz w scenie „placeholder pod przyszłą walutę”.
+  `Rate.text = ""`, karta `PARCHMENT` → `VELLUM`, `Amount` i ikona `INK` → `INK_SOFT`, bez
+  `modulate` (mnożyłby alfę dzieci razem z kartą i odbierał czytelność liczbie).
 - Brak osady: `SettlementName = "-"`, odznaka i podpis puste, karty `"0"`.
 - Orientacja: przy `size_changed`, gdy szerokość > wysokość, `ResourceGrid` przenosi się
-  jako ostatnie dziecko `ProfileRow` z `EXPAND_FILL`; w portrecie wraca do `BarRows` na
+  jako ostatnie dziecko `IdentityRow` z `EXPAND_FILL`; w portrecie wraca do `BarRows` na
   indeks 1.
 - `bar_height() -> float`: `TopBar.offset_top + TopBar.size.y`. Stała `BAR_HEIGHT` znika.
 - `bar_height_changed`: sygnał emitowany przy realnej zmianie wysokości paska, podpięty pod
@@ -329,6 +369,8 @@ HUD (CanvasLayer, layer 10)                                        HUD.gd
   `bar_height()` odczytane w tej samej klatce jest jeszcze sprzed przepięcia. `IslandDetail`
   i `WorldMap` słuchają obu sygnałów.
 - Licznik rolujący z projektu nie wchodzi.
+
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
 
 ## 6. Widok osady: plakietki slotów i arkusz budynku
 
@@ -368,7 +410,7 @@ jeśli puszczono w tym samym slocie, `Sheets.open_building(settlement, building)
 
 ```
 BuildingSheet (PanelContainer, Sheet)                           BuildingSheet.gd
-└── SheetMargin (MarginContainer, 14 × SCALE) → ModalBody (VBoxContainer, separacja 11 × SCALE)
+└── SheetMargin (MarginContainer, gap(14)) → Body (VBoxContainer, gap(11))
     ├── Grabber
     ├── Header (PanelContainer, ModalHeader)
     │   └── HBox: BuildingIcon (Icon, 46 × SCALE, CREAM) · TitleBox (VBox, EXPAND_FILL) · CloseButton
@@ -396,26 +438,41 @@ BuildingSheet (PanelContainer, Sheet)                           BuildingSheet.gd
 - `UpgradeButton`: emituje `upgrade_requested(coord, building)` i woła `Sheets.close()`.
   `CancelButton` i `CloseButton`: `Sheets.close()`.
 - `BuildingMenu.tscn` i `BuildingMenu.gd` znikają.
+- Węzeł `ModalBody` przemianowany na `Body`; jego marginesy i separacje idą przez `gap()`,
+  nie `px()` (zasada podziału z 4.2).
+
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
 
 ## 7. Arkusz inspekcji
 
 ```
 InspectSheet (PanelContainer, Sheet)                            InspectSheet.gd
-└── SheetMargin → VBoxContainer
+└── SheetMargin → Body (VBoxContainer)
     ├── Grabber
     ├── Header (ModalHeader): BiomeIcon (Icon pierwszego zasobu biomu, CREAM) · Name (Title) · BiomeBadge (Badge) · CloseButton
-    ├── Subtitle (Caption): "(14, 9) · gracz 12"  |  "(14, 9) · wyspa niczyja"
-    └── Body (VBoxContainer)
-        ├── PublicLabel (Label): "Dane publiczne: nazwa i właściciel."          (cudza osada)
-        ├── DepositHeader (SectionHeader, "ZNALEZISKO") + DepositRow (HBox chipów Chip: Icon + ilość)  (niczyja z deposit)
-        └── EmptyLabel (Label, "Brak znaleziska.")                                 (niczyja bez deposit)
+    ├── Subtitle (Caption): "(14, 9) · <ownerName>"  |  "(14, 9) · wyspa niczyja"  |  "(14, 9) · twoja osada"
+    ├── PublicLabel (Label): "Dane publiczne: nazwa i właściciel."          (cudza osada)
+    ├── DepositHeader (SectionHeader, "ZNALEZISKO") + DepositRow (HBox chipów Chip: Icon + ilość)  (niczyja z deposit)
+    ├── EmptyLabel (Label, "Brak znaleziska.")                                 (niczyja bez deposit)
+    └── ActionButton (Button, Primary, "PRZEJDŹ DO OSADY" / "WRÓĆ DO OSADY")   (własna osada)
 ```
+
+Sygnał `enter_settlement_requested(coord: Vector2i)` z `ActionButton.pressed`, jedyna droga
+zmiany osady aktywnej z mapy; obsłużony w `Sheets._on_enter_settlement_requested`.
 
 - `open(coord)`: `Island` z `GameState.island_at(coord)`, `Settlement` z `settlement_at(coord)`.
   Nazwa cudzej osady z `Settlement.name`; wyspa niczyja ma nazwę „Wyspa (x, y)”.
-- Widoczne jest dokładnie jedno z trzech dzieci `Body`.
+- Cudza osada: podpis „(x, y) · `<ownerName>`” (pseudonim, nigdy numeryczny `ownerId`).
+- Własna osada (aktywna albo nie): podpis „(x, y) · twoja osada”; `PublicLabel`, sekcja
+  znaleziska i `EmptyLabel` ukryte, dane prywatne są o jedno tapnięcie dalej w widoku osady.
+  `ActionButton` (wariacja `Primary`) „PRZEJDŹ DO OSADY” dla nieaktywnej — aktywuje osadę
+  i przełącza widok; „WRÓĆ DO OSADY” dla aktywnej — tylko przełącza widok.
+- Widoczne jest dokładnie jedno z trzech dzieci `Body` (`PublicLabel` / para
+  `DepositHeader`+`DepositRow` / `EmptyLabel`) — dotyczy trybów cudzej osady i niczyjej wyspy.
 - `Sheets.open_inspect` na komórce bez wyspy: `push_error`, arkusz się nie otwiera.
-- Bez akcji (wyprawa, kolonizacja, atak): poza zakresem.
+- Bez akcji (wyprawa, kolonizacja, atak) poza wejściem do własnej osady: poza zakresem.
+
+Zmienione przez `2026-09-09-islanders-ui-v2-polish-design.md`.
 
 ## 8. Arkusz flot i karta floty
 
