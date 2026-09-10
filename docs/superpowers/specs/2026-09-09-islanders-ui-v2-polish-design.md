@@ -4,7 +4,7 @@ Data: 2026-09-09
 Status: zatwierdzony w brainstormingu, uzupełniony po sesji grillowania 2026-09-10 i przy planowaniu;
 plan: `docs/superpowers/plans/2026-09-10-islanders-ui-v2-polish.md`
 Poprzedni spec: `2026-09-08-islanders-ui-v2-design.md`. Ten dokument go nie zastępuje; nadpisuje
-sekcje 3.3, 3.4, 3.5, 3.6, 5 i 6.1 oraz decyzje o placeholderze złota, o przyciemnianiu kart
+sekcje 3.4, 3.5, 4.2, 4.3, 5, 6.4 i 7 oraz decyzje o placeholderze złota, o przyciemnianiu kart
 i o zasadzie „zero zewnętrznych grafik”.
 Decyzje architektoniczne: ADR 0003 (położenie wyspy wyznacza odległość podróży) i nowy punkt 8
 załącznika kontraktu w ADR 0001.
@@ -53,7 +53,7 @@ implementacja czasu podróży po stronie backendu (strona API, patrz ADR 0003).
 | Awatar kotwicy | Usuwany | Statyczny glif bez informacji, 111 px szerokości |
 | Gęstość odstępów | Jedno pokrętło `DENSITY` niezależne od `SCALE` | Zagęszcza cały interfejs bez zmniejszania tekstu i ikon; jedna liczba do korekty po ocenie na urządzeniu |
 | Rozsunięcie wysp | `CELL_SIZE` 256 → 448 | Nie należy do kontraktu parytetu, więc backend nietknięty |
-| Rozbicie siatki | Deterministyczne przesunięcie środka w obrębie komórki, ±0,13 komórki, część kontraktu | Wyspy przestają czytać się jako rzędy; zakres wyliczony z warunku nienachodzenia |
+| Rozbicie siatki | Deterministyczne przesunięcie środka w obrębie komórki, ±0,13 komórki, część kontraktu | Wyspy przestają czytać się jako rzędy; zakres sprawdzony pomiarem konturów wody (5.2) |
 | Odległość podróży | Między położeniami wysp, nie między komórkami (ADR 0003) | Mapa organiczna i wierna jednocześnie: to, co widać, to, co płynie flota |
 | Tapnięcie wyspy | Zawsze ogląda, także własną i aktywną osadę; nigdy nie aktywuje | Osada aktywna jest źródłem floty; wskazanie własnej osady jako celu transportu musi być możliwe |
 | Arkusz własnej osady | Dane publiczne, oznaczenie „twoja”, przycisk „Przejdź do osady” / „Wróć do osady” | Pełne dane prywatne są o jedno tapnięcie dalej, w widoku osady |

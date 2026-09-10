@@ -85,7 +85,7 @@ cd .worktree/ui-polish
 git log --oneline -3
 ```
 
-Oczekiwane: na szczycie commit z tym planem (`Add the UI v2 polish implementation plan`) z gałęzi `fix/hud-settlement-name`. Katalog `.worktree/ui-v2` z poprzedniej fali zostaw w spokoju.
+Oczekiwane: wśród trzech ostatnich commitów jest `Add the UI v2 polish implementation plan` z gałęzi `fix/hud-settlement-name`. Katalog `.worktree/ui-v2` z poprzedniej fali zostaw w spokoju.
 
 - [ ] **Step 2: Zaimportuj i uruchom testy bazowe**
 
