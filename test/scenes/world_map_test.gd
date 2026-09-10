@@ -517,3 +517,18 @@ func test_labels_sit_under_their_island_and_do_not_overlap() -> void:
 func test_label_is_narrower_than_the_closest_possible_neighbour() -> void:
 	var closest := WorldGrid.CELL_SIZE * (1.0 - 2.0 * WorldGrid.OFFSET_RANGE)
 	assert_float(WORLD_MAP_SCRIPT.LABEL_SIZE.x).is_less(closest)
+
+
+func test_back_plaque_is_a_square_icon_button() -> void:
+	_apply_world()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	var back: Button = world_map.back_plaque
+	var tool := float(MedievalTheme.px(WORLD_MAP_SCRIPT.TOOL))
+	assert_str(back.text).is_empty()
+	assert_str(back.tooltip_text).is_equal("Wróć do osady")
+	assert_that(back.size).is_equal(Vector2(tool, tool))
+	var icon: Icon = back.get_node("Icon")
+	assert_str(String(icon.kind)).is_equal("back")
+	assert_float(icon.anchor_right).is_equal(1.0)
+	assert_bool(world_map.get_script().get_script_constant_map().has("BACK_WIDTH")).is_false()

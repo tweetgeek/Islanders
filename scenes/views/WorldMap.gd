@@ -11,7 +11,6 @@ const LABEL_FONT_SIZE := 32
 const LABEL_SIZE := Vector2(240, 56)
 const UI_MARGIN := 10.0
 const TOOL := 46.0
-const BACK_WIDTH := 110.0
 
 @onready var water: Node2D = $Water
 @onready var chunks: Node2D = $Chunks
@@ -147,14 +146,9 @@ func _settlement_ring(pos: Vector2, radius: float, s: Settlement) -> Line2D:
 
 func _style_ui() -> void:
 	var tool := MedievalTheme.px(TOOL)
-	back_plaque.custom_minimum_size = Vector2(MedievalTheme.px(BACK_WIDTH), tool)
+	# Sama strzałka, jak przyciski doku i przybliżania: napis zasłaniał wyspę pod paskiem.
+	back_plaque.custom_minimum_size = Vector2(tool, tool)
 	Icon.into_button(back_plaque, &"back", MedievalTheme.CREAM, MedievalTheme.px(12))
-	var back_icon: Icon = back_plaque.get_node("Icon")
-	back_icon.set_anchors_preset(Control.PRESET_LEFT_WIDE)   # zeruje offsety, stąd ustawiane poniżej
-	back_icon.offset_left = MedievalTheme.px(12)
-	back_icon.offset_right = MedievalTheme.px(12 + 22)
-	back_icon.offset_top = MedievalTheme.px(12)
-	back_icon.offset_bottom = -MedievalTheme.px(12)
 	coord_label.add_theme_color_override("font_color", MedievalTheme.PARCHMENT)
 	zoom_controls.add_theme_constant_override("separation", MedievalTheme.gap(8))
 	for b in [zoom_in, zoom_out]:
