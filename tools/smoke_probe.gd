@@ -242,7 +242,7 @@ func _process(_delta: float) -> void:
 		elif _frame == _gate + 23:
 			var sheets := _sheets()
 			_check(sheets.is_open() and sheets.current_sheet() == sheets.inspect_sheet, "tap cudzej osady otwiera arkusz inspekcji")
-			_check(sheets.inspect_sheet.subtitle.text.contains("gracz 9"), "arkusz inspekcji pokazuje właściciela")
+			_check(sheets.inspect_sheet.subtitle.text.contains("Kormoran"), "arkusz inspekcji pokazuje pseudonim właściciela")
 			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "mapa zostaje pod arkuszem")
 			_pan_start = _map().camera.position
 			_drag_from_win = _control_center(sheets.inspect_sheet)

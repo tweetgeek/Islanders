@@ -64,7 +64,7 @@ func open(coord: Vector2i) -> bool:
 		return true
 	if s != null:
 		name_label.text = s.name
-		subtitle.text = "(%d, %d) · gracz %d" % [coord.x, coord.y, s.owner_id]
+		subtitle.text = "(%d, %d) · %s" % [coord.x, coord.y, s.owner_name]
 		public_label.show()
 		deposit_header.hide()
 		deposit_row.hide()

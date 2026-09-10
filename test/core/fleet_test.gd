@@ -81,3 +81,10 @@ func test_mission_labels_and_icons_cover_every_mission() -> void:
 		assert_bool(Fleet.MISSION_ICONS.has(m)).override_failure_message("brak ikony %s" % m).is_true()
 	assert_str(Fleet.MISSION_LABELS["EXPEDITION"]).is_equal("Wyprawa")
 	assert_str(String(Fleet.MISSION_ICONS["ATTACK"])).is_equal("raid")
+
+
+func test_owner_name_is_read_with_unknown_fallback() -> void:
+	var d := _json()
+	d["ownerName"] = "Kormoran"
+	assert_str(Fleet.from_json(d).owner_name).is_equal("Kormoran")
+	assert_str(Fleet.from_json(_json()).owner_name).is_equal(Settlement.UNKNOWN_OWNER)

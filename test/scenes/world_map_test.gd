@@ -66,7 +66,7 @@ func _own(x: int, y: int, settlement_name: String) -> Dictionary:
 
 ## Cudza osada: kontrakt API nie przysyła dla niej "resources" i po tym poznaje ją Settlement.
 func _foreign(cell: Vector2i, settlement_name: String) -> Dictionary:
-	return {"x": cell.x, "y": cell.y, "ownerId": 9, "name": settlement_name}
+	return {"x": cell.x, "y": cell.y, "ownerId": 9, "ownerName": "Kormoran", "name": settlement_name}
 
 
 func _hud() -> CanvasLayer:
@@ -510,6 +510,18 @@ func test_labels_sit_under_their_island_and_do_not_overlap() -> void:
 			assert_float(label.position.x + label.size.x / 2.0).is_equal_approx(centre.x, 0.01)
 	assert_int(rects.size()).is_equal(2)
 	assert_bool(rects[0].intersects(rects[1])).is_false()
+
+
+func test_labels_show_nickname_for_others_and_you_for_own() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa"), _foreign(FOREIGN_CELL, "Szara Skała")])
+	var world_map := _spawn_map(WorldGrid.island_center(WORLD_SEED, HOME_CELL))
+	await _settle(world_map)
+	var texts: Array[String] = []
+	for label: Label in world_map.labels.get_children():
+		texts.append(label.text)
+	texts.sort()
+	assert_that(texts).is_equal(["Koralowa\nTy", "Szara Skała\nKormoran"])
 
 
 ## Etykieta jest węższa niż najmniejsza możliwa odległość środków sąsiadów w poziomie,

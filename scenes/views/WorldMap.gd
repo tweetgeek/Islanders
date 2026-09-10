@@ -184,7 +184,7 @@ func _rebuild_labels() -> void:
 		var island := GameState.island_at(s.coord)
 		var radius := island.radius if island != null else 80.0
 		var label := Label.new()
-		label.text = "%s\n%s" % [s.name, "Ty" if s.is_own else "gracz %d" % s.owner_id]
+		label.text = "%s\n%s" % [s.name, "Ty" if s.is_own else s.owner_name]
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.size = LABEL_SIZE
 		label.position = WorldGrid.island_center(GameState.world_seed(), s.coord) \

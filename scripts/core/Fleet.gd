@@ -24,6 +24,8 @@ const MISSION_ICONS := {
 var id: String = ""
 var world_id: String = ""
 var owner_id: int = 0
+## Pseudonim właściciela; dla nadchodzącej cudzej floty jedyne, co o nim wiemy.
+var owner_name: String = Settlement.UNKNOWN_OWNER
 var mission: String = "TRANSPORT"
 var from: Vector2i = Coord.NONE
 var to: Vector2i = Coord.NONE
@@ -46,6 +48,7 @@ static func from_json(d: Dictionary) -> Fleet:
 		return null
 	f.world_id = str(d.get("world", ""))
 	f.owner_id = int(d.get("ownerId", 0))
+	f.owner_name = Settlement.parse_owner_name(d)
 	f.mission = str(d.get("mission", "TRANSPORT"))
 	if not MISSIONS.has(f.mission):
 		push_warning("Fleet %s: nieznana misja '%s'" % [f.id, f.mission])

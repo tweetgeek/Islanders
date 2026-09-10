@@ -118,7 +118,7 @@ wrócą z endpointu sesji, w mocku siedzą tu dla prostoty.
 ```json
 {
   "world": "w1", "x": 10, "y": 15,
-  "ownerId": 7, "name": "Koralowa",
+  "ownerId": 7, "ownerName": "Mewa", "name": "Koralowa",
   "resources": { "wood": 500, "stone": 200, "food": 1000, "iron": 40, "sulfur": 0 },
   "productionPerHour": { "wood": 120, "stone": 0, "food": 200, "iron": 0, "sulfur": 0 },
   "capacity": 8000,
@@ -128,14 +128,16 @@ wrócą z endpointu sesji, w mocku siedzą tu dla prostoty.
 }
 ```
 
-Cudza osada (dane publiczne) ma tylko `world`, `x`, `y`, `ownerId`, `name`.
+Cudza osada (dane publiczne) ma tylko `world`, `x`, `y`, `ownerId`, `ownerName`, `name`. Klient
+pokazuje innym graczom wyłącznie `ownerName` (glosariusz: Nickname); `ownerId` służy tylko do
+rozpoznania osady własnej.
 Brak `resources` w JSON oznacza osadę cudzą; klient rozróżnia to przez `Settlement.is_own`.
 
 ### 4.3 Fleet
 
 ```json
 {
-  "id": "f3", "world": "w1", "ownerId": 7, "mission": "EXPEDITION",
+  "id": "f3", "world": "w1", "ownerId": 7, "ownerName": "Mewa", "mission": "EXPEDITION",
   "from": { "x": 10, "y": 15 }, "to": { "x": 14, "y": 9 },
   "ships": { "SLOOP": 10, "GALLEON": 2 },
   "cargo": { "units": { "MILITIA": 20 }, "resources": { "iron": 300 } },
@@ -144,7 +146,8 @@ Brak `resources` w JSON oznacza osadę cudzą; klient rozróżnia to przez `Sett
 ```
 
 Flota ma własne `id`, bo między tymi samymi wyspami może lecieć wiele flot.
-Nadchodząca cudza flota ma `ownerId`, `mission`, `from`, `to`, `arriveAt`, bez `ships` i `cargo`.
+Nadchodząca cudza flota ma `ownerId`, `ownerName`, `mission`, `from`, `to`, `arriveAt`, bez `ships`
+i `cargo`.
 
 ### 4.4 Island (nie przychodzi z API)
 
