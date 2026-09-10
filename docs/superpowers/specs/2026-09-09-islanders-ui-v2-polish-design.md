@@ -1,7 +1,8 @@
 # Islanders – UI v2, korekty po przeglądzie na urządzeniu
 
 Data: 2026-09-09
-Status: zatwierdzony w brainstormingu, uzupełniony po sesji grillowania 2026-09-10, czeka na plan implementacji
+Status: zatwierdzony w brainstormingu, uzupełniony po sesji grillowania 2026-09-10 i przy planowaniu;
+plan: `docs/superpowers/plans/2026-09-10-islanders-ui-v2-polish.md`
 Poprzedni spec: `2026-09-08-islanders-ui-v2-design.md`. Ten dokument go nie zastępuje; nadpisuje
 sekcje 3.3, 3.4, 3.5, 3.6, 5 i 6.1 oraz decyzje o placeholderze złota, o przyciemnianiu kart
 i o zasadzie „zero zewnętrznych grafik”.
@@ -171,28 +172,41 @@ Wzór przesunięcia, z solami `(13, 17)` i `(19, 23)`, jest spisany w załączni
 bo tam backend szuka formuł. `island_position` to `cell + offset` w jednostkach komórek i jest
 kontraktem; `island_center` przelicza to na piksele przez `CELL_SIZE` i jest renderowaniem.
 
+`Vector2` w standardowym buildzie Godota trzyma float32, więc zgubiłby ostatnie bity, które
+backend porównuje dokładnie. Stąd czwarta funkcja, `island_offset_xy(world_seed, cell) ->
+PackedFloat64Array`, liczy przesunięcie w pełnej precyzji double i to z niej pisze się artefakt
+kontraktu; trzy funkcje wyżej są jej wygodnym, float32 widokiem dla renderowania i nawigacji.
+
 Przesunięcie przestało być kosmetyką: jest zamrożoną stałą rozgrywki, jak próg lądu. Odległość
 między bezpośrednimi sąsiadami w poziomie waha się od 0,74 do 1,26 komórki, co jest celową cechą
 mapy — położenie wyspy ma znaczenie.
 
-Zakres wyliczony z warunku, nie dobrany na oko:
+Zakres sprawdzony pomiarem na rzeczywistych konturach, nie wzorem. Pierwsza wersja tego
+dokumentu liczyła wodę przybrzeżną jako koło o promieniu `radius × 1,18` i wychodziła jej
+najgorszym prześwitem 72 px. Przy planowaniu okazało się, że to zły model: `CoastlineGenerator`
+zaburza promień szumem do ±35 % i spłaszcza kontur elipsą 0,8–1,2, więc obwódka wody sięga
+w medianie 1,42 promienia, a najdalej 1,77. Pomiar wielokątów `Shallow` dla wszystkich par
+bezpośrednich sąsiadów (także po przekątnej) na obszarze 120 × 120 komórek:
 
-| Krok | Wartość |
-|---|---|
-| Najgorsza para promieni | 110 + 110 |
-| Woda przybrzeżna, skala 1,18 | 260 px |
-| Docelowy minimalny prześwit | 60 px |
-| Wymagana odległość środków | ≥ 320 px |
-| Maksymalne przesunięcie przy komórce 448 | 64 px, czyli 0,143 komórki |
-| Przyjęte `OFFSET_RANGE` | 0,13, czyli do 58 px |
-| Najgorsza odległość środków | 448 − 116 = 332 px |
-| Najgorszy prześwit | 332 − 260 = 72 px |
+| Konfiguracja | Pary | Nałożenia | Najmniejszy prześwit | 1. percentyl | Mediana |
+|---|---|---|---|---|---|
+| 256 px, bez przesunięcia (dziś), ziarno 1337 | 7518 | 174 | — | — | 78 px |
+| 448 px, bez przesunięcia, ziarno 1337 | 7518 | 0 | 141 px | 178 px | 271 px |
+| 448 px, ±0,13, ziarno 1337 | 7518 | 0 | 54 px | 124 px | 311 px |
+| 448 px, ±0,13, ziarno 99999 | 6556 | 0 | 52 px | 124 px | 315 px |
+
+Pierwsze zetknięcie obwódek pojawia się przy przesunięciu ~0,21 (ziarno 1337, prześwit 0,1 px);
+przy 0,15 najmniejszy prześwit to 41 px, przy 0,17 — 28 px. Przyjęte `OFFSET_RANGE = 0.13`
+zostawia więc zapas i żadnych nałożeń w próbie. Test klienta (sekcja 9) sprawdza ten warunek na
+tych samych wielokątach, które rysuje `IslandGenerator`, a nie na przybliżeniu kołem.
 
 ### 5.3 Trafianie w wyspę i pozycje
 
-Tapnięcie sprawdza komórkę tapniętą i osiem sąsiednich, i wybiera najbliższą wyspę, której
-przesunięty środek mieści się w promieniu trafienia. Sąsiedzi są konieczni, bo po przesunięciu
-wyspa z sąsiedniej komórki może być bliżej niż wyspa z komórki tapniętej.
+Tapnięcie mierzy odległość od przesuniętego środka wyspy tapniętej komórki, zamiast od środka
+komórki. Sąsiednich komórek sprawdzać nie trzeba: dysk trafienia sięga od środka komórki najdalej
+na przesunięcie wzdłuż osi (58 px) plus promień trafienia (1,1 × 110 = 121 px), razem 179 px przy
+połowie komórki 224 px, więc nigdy nie wychodzi poza własną komórkę. Test przypina ten warunek
+analitycznie, żeby późniejsza zmiana stałych nie złamała go po cichu.
 
 Tej samej przesuniętej pozycji używają: rozmieszczanie generatorów wysp w chunkach, pierścienie
 osad, etykiety osad oraz trasy flot.
@@ -201,11 +215,11 @@ osad, etykiety osad oraz trasy flot.
 świata, ale nie jego ziarno. Bez tego linia trasy kończyłaby się obok wyspy, a nie na niej.
 Konsumenci do poprawki: `FleetRenderer` i skok kamery po tapnięciu karty floty w `Sheets`.
 
-`SeaNavigation.distance` i `travel_time` liczą między `island_position` startu i celu, a kierunek
-wiatru to wektor między nimi, więc obie dostają parametr `world_seed`. Dziś nie mają żadnego
-wywołania w kliencie, bo czas przybycia przychodzi z serwera, ale będą podstawą podglądu czasu
-podróży przy wysyłaniu flot i muszą zgadzać się z backendem. Przy zerowym przesunięciu wynik
-jest identyczny z dzisiejszym, co test przypina.
+`SeaNavigation.distance` i `travel_time` przyjmują położenia (`Vector2` w jednostkach komórek)
+zamiast komórek i pozostają czystą geometrią; nowa `travel_time_between(world_seed, from_cell,
+to_cell, speed, wind)` składa je z `WorldGrid.island_position`. Kierunek wiatru to wektor między
+tymi samymi położeniami. Dziś nic w kliencie tego nie woła, bo czas przybycia przychodzi z serwera,
+ale będzie to podstawą podglądu czasu podróży przy wysyłaniu flot i musi zgadzać się z backendem.
 
 ### 5.4 Dwie usterki ze zgłoszonego zrzutu
 
@@ -302,7 +316,9 @@ reguły glosariusza jest wyciekiem identyfikatora konta.
 | `Fleet.position_at(now)` | `Fleet.position_at(now, world_seed)` | `fleet_test`, `FleetRenderer`, `Sheets` |
 | — | `Icon.knockout` | `icon_test` |
 | — | `WorldGrid.island_position` | `world_grid_test`, `tools/world_parity_dump.gd` |
-| `SeaNavigation.distance(a, b)`, `travel_time(a, b, …)` | wersje z `world_seed` | `sea_navigation_test` |
+| — | `WorldGrid.island_offset_xy` (double, dla artefaktu kontraktu) | `world_grid_test`, `tools/world_parity_dump.gd` |
+| — | `GameState.world_seed()`, `IslandGenerator.shallow_outline()` | `WorldMap`, `FleetRenderer`, `Sheets`, `world_map_test` |
+| `SeaNavigation.distance(Vector2i, Vector2i)`, `travel_time(Vector2i, …)` | wersje na położeniach `Vector2` plus `travel_time_between(world_seed, …)` | `sea_navigation_test` |
 | — | `Settlement.owner_name`, `Fleet.owner_name` | `settlement_test`, `fleet_test`, fixtures |
 | tapnięcie własnej osady aktywuje | tapnięcie zawsze ogląda | `world_map_test`, `tools/smoke_probe.gd` |
 | — | tryb własnej osady w `InspectSheet` | `inspect_sheet_test` |
@@ -315,18 +331,21 @@ reguły glosariusza jest wyciekiem identyfikatora konta.
 - **Gęstość**: `gap()` skaluje przez oba mnożniki i zaokrągla; dla dodatniej wartości i gęstości
   poniżej jedynki wynik jest nie większy niż `px()`; `flat()` bierze marginesy z `gap()`,
   a promień i obramowanie z `px()` — ten przypina samą zasadę podziału.
-- **Geometria mapy**: dla próbki sąsiednich par zajętych komórek odległość przesuniętych środków
-  jest nie mniejsza niż woda przybrzeżna obu wysp (niezmiennik, nie konkretne liczby);
-  `island_offset` jest deterministyczne i mieści się w `OFFSET_RANGE`; trafianie znajduje wyspę
-  z komórki sąsiedniej, gdy przesunięcie ją przybliżyło; prostokąty etykiet dwóch sąsiednich
-  osad nie przecinają się.
+- **Geometria mapy**: dla próbki sąsiednich par wysp ich wielokąty wody przybrzeżnej, te same,
+  które rysuje `IslandGenerator`, poszerzone o połowę minimalnego prześwitu, nie przecinają się;
+  `island_offset` jest deterministyczne i mieści się w `OFFSET_RANGE`; dysk trafienia w najgorszym
+  przypadku mieści się we własnej komórce; tapnięcie liczy od przesuniętego środka; prostokąty
+  etykiet dwóch sąsiednich osad nie przecinają się.
 - **Czytelność**: karta produkowana ma tło `PARCHMENT`, ikonę w kolorze zasobu i niepuste tempo;
   nieprodukowana ma `VELLUM`, liczbę i ikonę `INK_SOFT` oraz puste tempo; żadna karta nie jest przyciemniana
   przezroczystością (`modulate.a == 1.0`); `Icon.knockout` ma domyślną wartość i ustawiona
   wartość dochodzi do rysowania.
 - **Kontrakt położenia**: `island_offset` odtwarza wzór z ADR 0001, punkt 8, dla znanych komórek
-  (złote wartości); `contract/world-parity.json` zawiera `offsetX` i `offsetY` każdej komórki lądu
-  i test parytetu klienta je sprawdza.
+  (złote wartości policzone niezależnie). Artefakt `contract/world-parity.json` (9,6 MB, czytany
+  tylko przez backend) dostaje `offsetX` i `offsetY` każdej komórki lądu; przy regeneracji
+  niezależna implementacja wzoru w Pythonie porównuje wszystkie komórki lądu obu ziaren, a każde
+  dotychczasowe pole musi zostać bit w bit identyczne. Stałego testu klienta na artefakcie nie ma,
+  bo parsowanie go w każdym przebiegu testów jest zbyt kosztowne.
 - **Odległość podróży**: przy zerowym przesunięciu `SeaNavigation.distance` daje dzisiejszą
   odległość między komórkami; przy przesunięciu liczy między położeniami; jest symetryczna;
   kierunek wiatru liczy się po tym samym wektorze.
@@ -341,12 +360,13 @@ reguły glosariusza jest wyciekiem identyfikatora konta.
 
 ## 10. Sekcje UI v2 do zaktualizowania
 
-Po wdrożeniu poprzedni spec wymaga korekt w: 3.3 (dok, ikona zamiast plakietki z napisem),
-3.4 (widok osady zyskuje populację), 3.5 (warstwa UI mapy, `ZOOM_MIN`), 5 (struktura paska,
-budżet wysokości, usunięte węzły), 6.1 (`px()` kontra `gap()`) oraz w tabeli decyzji
-(placeholder złota, przyciemnianie kart, zasada o grafikach). Do tego 3.6 (tryb własnej osady
-w arkuszu, tapnięcie zawsze ogląda) oraz sekcja 6.4, która wciąż nazywa węzeł `ModalBody`,
-przemianowany na `Body` jeszcze w poprzedniej fali.
+Po wdrożeniu poprzedni spec wymaga korekt w: 3.4 (widok osady zyskuje populację), 3.5 (warstwa
+UI mapy, ikona zamiast plakietki z napisem, `ZOOM_MIN`, tapnięcie zawsze ogląda), 4.2 (`px()`
+kontra `gap()`), 4.3 (ikona kamienia, kolor wycięcia), 5 (struktura paska, budżet wysokości,
+usunięte węzły, stan karty nieprodukowanej), 7 (tryb własnej osady w arkuszu, pseudonim
+w podpisie) oraz w tabeli decyzji (placeholder złota, przyciemnianie kart, zasada o grafikach).
+Do tego sekcja 6.4, która wciąż nazywa węzeł `ModalBody`, przemianowany na `Body` jeszcze
+w poprzedniej fali.
 
 Poza specyfikacją UI v2: specyfikacja szkieletu klienta, sekcja 4.2 (dane publiczne osady
 zawierają pseudonim) i `docs/architecture/data-flow.html`, który ta fala dezaktualizuje w pasku,
