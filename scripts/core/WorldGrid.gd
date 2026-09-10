@@ -1,7 +1,9 @@
 class_name WorldGrid
 extends RefCounted
 
-const CELL_SIZE := 256.0
+## Rozmiar komórki w pikselach mapy. Rendering, nie kontrakt (backend pracuje w komórkach).
+## 448 zamiast 256 rozsuwa wyspy; próg prześwitu pilnuje world_map_test.
+const CELL_SIZE := 448.0
 const CHUNK_SIZE := 8
 const LAND_FREQUENCY := 0.12
 const LAND_THRESHOLD := 0.30

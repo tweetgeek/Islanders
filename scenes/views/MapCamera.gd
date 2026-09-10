@@ -7,7 +7,8 @@ extends Camera2D
 ## (np. w pasek HUD) - kamera sama nic o UI ani o wyspach nie wie.
 signal tapped(world_pos: Vector2, screen_pos: Vector2)
 
-const ZOOM_MIN := 0.25
+## Przy komórce 448 najszersze przybliżenie pokazuje ~16 komórek, jak wcześniej przy 256 i 0,25.
+const ZOOM_MIN := 0.15
 const ZOOM_MAX := 2.0
 const TAP_MAX_TIME := 0.25
 const TAP_MAX_DIST := 12.0

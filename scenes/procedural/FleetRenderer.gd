@@ -3,8 +3,9 @@ extends Node2D
 
 const OWN_COLOR := Color(1.0, 0.85, 0.2)
 const INCOMING_COLOR := Color(0.95, 0.25, 0.2)
-const DASH := 24.0
-const TRIANGLE := 14.0
+## × 1,75 wobec komórki 256, żeby trasa i znacznik nie zmalały wobec odległości.
+const DASH := 42.0
+const TRIANGLE := 24.0
 const FONT_SIZE := 16
 
 var _fleets: Array = []
@@ -25,16 +26,17 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	var now := TimeUtil.now()
+	var world_seed := GameState.world_seed()
 	var font := ThemeDB.fallback_font
 	for f: Fleet in _fleets:
 		if f.is_arrived(now):
 			continue
-		var a := WorldGrid.cell_to_world(f.from)
-		var b := WorldGrid.cell_to_world(f.to)
+		var a := WorldGrid.island_center(world_seed, f.from)
+		var b := WorldGrid.island_center(world_seed, f.to)
 		var color := OWN_COLOR if f.is_own(GameState.player_id) else INCOMING_COLOR
 		draw_dashed_line(a, b, color, 2.0, DASH)
-		var pos := f.position_at(now)
-		var dir := f.direction()
+		var pos := f.position_at(now, world_seed)
+		var dir := f.direction(world_seed)
 		var tri := PackedVector2Array([
 			pos + dir * TRIANGLE,
 			pos + dir.rotated(2.5) * TRIANGLE * 0.7,

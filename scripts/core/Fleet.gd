@@ -72,12 +72,15 @@ func progress(now: float) -> float:
 	return clampf((now - depart_at) / total, 0.0, 1.0)
 
 
-func position_at(now: float) -> Vector2:
-	return WorldGrid.cell_to_world(from).lerp(WorldGrid.cell_to_world(to), progress(now))
+## Pozycja na mapie w chwili now, między środkami wysp startu i celu (WorldGrid.island_center),
+## żeby trasa zaczynała się i kończyła na wyspach, a nie obok nich. Flota zna identyfikator
+## świata, ale nie jego ziarno, więc podaje je wołający (GameState.world_seed()).
+func position_at(now: float, world_seed: int) -> Vector2:
+	return WorldGrid.island_center(world_seed, from).lerp(WorldGrid.island_center(world_seed, to), progress(now))
 
 
-func direction() -> Vector2:
-	return (WorldGrid.cell_to_world(to) - WorldGrid.cell_to_world(from)).normalized()
+func direction(world_seed: int) -> Vector2:
+	return (WorldGrid.island_center(world_seed, to) - WorldGrid.island_center(world_seed, from)).normalized()
 
 
 func is_arrived(now: float) -> bool:

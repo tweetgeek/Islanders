@@ -228,7 +228,7 @@ func _process(_delta: float) -> void:
 			_check(_map().camera.position != _pan_start, "przeciągnięcie na ikonie zasobu przesuwa mapę")
 		# --- Tap cudzej osady otwiera arkusz inspekcji; gest na arkuszu nie rusza mapy. ---
 		elif _frame == _gate + 18:
-			_map().camera.position = WorldGrid.cell_to_world(FixtureCells.FOREIGN)
+			_map().camera.position = WorldGrid.island_center(GameState.world_seed(), FixtureCells.FOREIGN)
 			_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 		elif _frame == _gate + 20:
 			_mouse_release(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
@@ -253,7 +253,7 @@ func _process(_delta: float) -> void:
 		_gate = _frame
 		_phase = 4
 		_check(not _sheets().is_open(), "backdrop zamyka arkusz inspekcji")
-		_map().camera.position = WorldGrid.cell_to_world(FixtureCells.DEPOSIT)
+		_map().camera.position = WorldGrid.island_center(GameState.world_seed(), FixtureCells.DEPOSIT)
 		_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 	elif _phase == 4:
 		if _frame == _gate + 2:
@@ -267,7 +267,7 @@ func _process(_delta: float) -> void:
 	elif _phase == 5 and _settled():
 		_gate = _frame
 		_phase = 6
-		_map().camera.position = WorldGrid.cell_to_world(FixtureCells.HOME)
+		_map().camera.position = WorldGrid.island_center(GameState.world_seed(), FixtureCells.HOME)
 		_mouse_press(_viewport_to_window(get_viewport().get_visible_rect().get_center()))
 	elif _phase == 6:
 		if _frame == _gate + 2:
@@ -294,7 +294,7 @@ func _process(_delta: float) -> void:
 			_check(SceneManager.current_view == SceneManager.VIEW_WORLD_MAP, "tap w kartę floty otwiera mapę")
 			_check(not _sheets().is_open(), "arkusz flot zamknięty po tapie")
 			var incoming: Fleet = GameState.fleets["f3"]
-			var dist: float = _map().camera.position.distance_to(incoming.position_at(TimeUtil.now()))
+			var dist: float = _map().camera.position.distance_to(incoming.position_at(TimeUtil.now(), GameState.world_seed()))
 			_check(dist < WorldGrid.CELL_SIZE * 2.0, "kamera przy pozycji floty")
 			ApiClient.resync()
 		elif _frame == _gate + 20:

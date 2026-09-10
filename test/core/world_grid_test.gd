@@ -91,7 +91,7 @@ func test_cell_world_roundtrip() -> void:
 		).is_equal(c)
 	assert_that(
 		WorldGrid.cell_to_world(Vector2i(0, 0))
-	).is_equal(Vector2(128, 128))
+	).is_equal(Vector2(224, 224))
 
 
 func test_chunk_of_handles_negatives() -> void:
@@ -155,10 +155,10 @@ func test_golden_radius_and_deposit_for_fixture_seed() -> void:
 ## NIE aktualizować tych liczb bez świadomej decyzji o migracji świata - to jest kontrakt.
 func test_golden_island_offsets_for_fixture_seed() -> void:
 	var cases := {
-		Vector2i(80, 73): [0.07367142999900071, -0.020720495653042865],
-		Vector2i(81, 73): [0.1028230238832817, -0.04189567302887978],
-		Vector2i(79, 73): [0.024799640251823716, -0.0904816628360148],
-		Vector2i(87, 72): [0.07741281103227741, 0.04090836414509842],
+		FixtureCells.HOME: [0.07367142999900071, -0.020720495653042865],
+		FixtureCells.FOREIGN: [0.1028230238832817, -0.04189567302887978],
+		FixtureCells.DEPOSIT: [0.024799640251823716, -0.0904816628360148],
+		FixtureCells.OWN_SECOND: [0.07741281103227741, 0.04090836414509842],
 	}
 	for cell: Vector2i in cases:
 		var got := WorldGrid.island_offset_xy(SEED, cell)
@@ -190,7 +190,7 @@ func test_island_offset_axes_are_independent() -> void:
 
 
 func test_island_position_and_center_follow_the_offset() -> void:
-	var cell := Vector2i(80, 73)
+	var cell := FixtureCells.HOME
 	var off := WorldGrid.island_offset(SEED, cell)
 	assert_that(WorldGrid.island_position(SEED, cell)).is_equal(Vector2(cell) + off)
 	assert_that(WorldGrid.island_center(SEED, cell)).is_equal(WorldGrid.cell_to_world(cell) + off * WorldGrid.CELL_SIZE)

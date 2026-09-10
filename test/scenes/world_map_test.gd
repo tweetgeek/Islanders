@@ -14,7 +14,8 @@ const WORLD_SEED := FixtureCells.WORLD_SEED
 const WORLD_SIZE := 4000
 const HOME_CELL := FixtureCells.HOME
 const FOREIGN_CELL := FixtureCells.FOREIGN
-## Daleko od krawędzi świata (0..1_024_000), żeby kamera nigdy nie była przycinana przez bounds.
+## Daleko od krawędzi świata (0..1_792_000, czyli 4000 komórek × 448 px), żeby kamera nigdy
+## nie była przycinana przez bounds.
 const START_POS := Vector2(200000.0, 200000.0)
 ## Portret projektu; testy obracające ekran wracają do niego, żeby nie zmieniać stanu innym testom.
 const PORTRAIT_WINDOW := Vector2i(1080, 1920)
@@ -100,10 +101,10 @@ func _tap(camera: MapCamera, screen_pos: Vector2) -> void:
 		camera._on_touch(e)
 
 
-## Ustawia kamerę tak, żeby wskazany punkt ekranu pokrywał się ze środkiem komórki.
+## Ustawia kamerę tak, żeby wskazany punkt ekranu pokrywał się ze środkiem wyspy w komórce.
 func _aim(camera: MapCamera, screen_pos: Vector2, cell: Vector2i) -> void:
 	var half := camera.get_viewport_rect().size / 2.0
-	camera.position = WorldGrid.cell_to_world(cell) - (screen_pos - half) / camera.zoom
+	camera.position = WorldGrid.island_center(WORLD_SEED, cell) - (screen_pos - half) / camera.zoom
 
 
 func _spawn_map(cam_pos: Vector2) -> Node2D:
@@ -425,3 +426,94 @@ func test_map_ui_margins_are_gaps() -> void:
 	await _settle(world_map)
 	assert_float(world_map.back_plaque.position.x).is_equal(float(MedievalTheme.gap(world_map.UI_MARGIN)))
 	assert_int(world_map.zoom_controls.get_theme_constant("separation")).is_equal(MedievalTheme.gap(8))
+
+
+## Najmniejszy dopuszczalny prześwit między obwódkami wody przybrzeżnej sąsiednich wysp.
+## Pomiar przy CELL_SIZE 448 i OFFSET_RANGE 0.13 dał ~52 px na ~14 000 par (spec, sekcja 5.2).
+const MIN_SHALLOW_GAP := 40.0
+
+
+func _shallow_at(cell: Vector2i, island: Island) -> PackedVector2Array:
+	var center := WorldGrid.island_center(WORLD_SEED, cell)
+	var out := PackedVector2Array()
+	for p in IslandGenerator.shallow_outline(island.seed_val, island.radius):
+		out.append(p + center)
+	return out
+
+
+## Niezmiennik geometrii na tych samych wielokątach, które widać na ekranie: każdą obwódkę
+## poszerzamy o połowę prześwitu i żadne dwie sąsiednie (także po przekątnej) nie mogą się
+## wtedy przeciąć. Zmniejszenie komórki albo zwiększenie przesunięcia musi przejść ten test.
+func test_neighbouring_shallows_keep_a_clear_gap() -> void:
+	var inflated := {}
+	for y in range(50, 110):
+		for x in range(50, 110):
+			var cell := Vector2i(x, y)
+			var island := WorldGrid.island_at(WORLD_SEED, cell)
+			if island != null:
+				var grown := Geometry2D.offset_polygon(_shallow_at(cell, island), MIN_SHALLOW_GAP / 2.0, Geometry2D.JOIN_ROUND)
+				inflated[cell] = grown[0]
+	var pairs := 0
+	for cell: Vector2i in inflated:
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]:
+			var other := cell + d
+			if not inflated.has(other):
+				continue
+			pairs += 1
+			assert_bool(Geometry2D.intersect_polygons(inflated[cell], inflated[other]).is_empty()) \
+				.override_failure_message("obwódki %s i %s bliżej niż %d px" % [cell, other, MIN_SHALLOW_GAP]) \
+				.is_true()
+	assert_int(pairs).is_greater(100)
+
+
+## _on_tapped sprawdza wyłącznie wyspę tapniętej komórki. To wystarcza, dopóki dysk trafienia
+## największej, najbardziej przesuniętej wyspy mieści się w połowie komórki na każdej osi:
+## 0,13 × 448 + 1,1 × 110 = 179 px < 224 px.
+func test_tap_disc_never_leaves_its_cell() -> void:
+	var reach := WorldGrid.OFFSET_RANGE * WorldGrid.CELL_SIZE + WorldGrid.RADIUS_MAX * IslandGenerator.TAP_RADIUS_FACTOR
+	assert_float(reach).is_less(WorldGrid.CELL_SIZE / 2.0)
+
+
+## Punkt po stronie przesunięcia wyspy, w 95 % promienia trafienia od jej środka, ale dalej od
+## środka komórki niż promień trafienia. Liczone od środka komórki - jak przed tą zmianą - byłoby
+## pudłem; liczone od środka wyspy jest trafieniem.
+func test_tap_measures_from_the_offset_island_centre() -> void:
+	_apply_world()
+	GameState.apply_settlements([_foreign(FOREIGN_CELL, "Szara Skała")])
+	var sheets := _sheets()
+	var world_map := _spawn_map(START_POS)
+	await _resize_window(PORTRAIT_WINDOW)
+	var camera: MapCamera = world_map.camera
+	var island := WorldGrid.island_at(WORLD_SEED, FOREIGN_CELL)
+	var tap_radius := island.radius * IslandGenerator.TAP_RADIUS_FACTOR
+	var centre := WorldGrid.island_center(WORLD_SEED, FOREIGN_CELL)
+	var cell_centre := WorldGrid.cell_to_world(FOREIGN_CELL)
+	var target := centre + (centre - cell_centre).normalized() * tap_radius * 0.95
+	assert_float(target.distance_to(cell_centre)).is_greater(tap_radius)
+	camera.position = target   # środek ekranu wskazuje pozycję kamery
+	_tap(camera, camera.get_viewport_rect().size / 2.0)
+	await await_idle_frame()
+	assert_bool(sheets.is_open()).is_true()
+	assert_object(sheets.current_sheet()).is_same(sheets.inspect_sheet)
+
+
+func test_labels_sit_under_their_island_and_do_not_overlap() -> void:
+	_apply_world()
+	GameState.apply_settlements([_own(HOME_CELL.x, HOME_CELL.y, "Koralowa"), _foreign(FOREIGN_CELL, "Szara Skała")])
+	var world_map := _spawn_map(WorldGrid.island_center(WORLD_SEED, HOME_CELL))
+	await _settle(world_map)
+	var rects: Array[Rect2] = []
+	for label: Label in world_map.labels.get_children():
+		rects.append(Rect2(label.position, label.size))
+		if label.text.begins_with("Koralowa"):
+			var centre := WorldGrid.island_center(WORLD_SEED, HOME_CELL)
+			assert_float(label.position.x + label.size.x / 2.0).is_equal_approx(centre.x, 0.01)
+	assert_int(rects.size()).is_equal(2)
+	assert_bool(rects[0].intersects(rects[1])).is_false()
+
+
+## Etykieta jest węższa niż najmniejsza możliwa odległość środków sąsiadów w poziomie,
+## więc dwie etykiety nie mogą się nałożyć niezależnie od tego, które wyspy są zajęte.
+func test_label_is_narrower_than_the_closest_possible_neighbour() -> void:
+	var closest := WorldGrid.CELL_SIZE * (1.0 - 2.0 * WorldGrid.OFFSET_RANGE)
+	assert_float(WORLD_MAP_SCRIPT.LABEL_SIZE.x).is_less(closest)

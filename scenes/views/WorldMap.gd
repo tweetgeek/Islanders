@@ -6,6 +6,9 @@ const LABEL_MIN_ZOOM := 0.6
 const OWN_COLOR := MedievalTheme.BRASS
 const FOREIGN_COLOR := MedievalTheme.CREAM_SOFT
 const LABEL_FONT_SIZE := 32
+## Etykieta osady pod wyspą. Szerokość musi zostać mniejsza niż najmniejsza odległość środków
+## sąsiadów (CELL_SIZE × (1 − 2 × OFFSET_RANGE) = 332 px) - pilnuje tego world_map_test.
+const LABEL_SIZE := Vector2(240, 56)
 const UI_MARGIN := 10.0
 const TOOL := 46.0
 const BACK_WIDTH := 110.0
@@ -36,7 +39,7 @@ func _ready() -> void:
 	if saved.has("position"):
 		camera.position = saved["position"]
 	elif GameState.active_settlement != null:
-		camera.position = WorldGrid.cell_to_world(GameState.active_settlement.coord)
+		camera.position = WorldGrid.island_center(GameState.world_seed(), GameState.active_settlement.coord)
 	if saved.has("zoom"):
 		camera.zoom = saved["zoom"]
 	if GameState.world != null:
@@ -121,7 +124,7 @@ func _spawn_chunk(chunk: Vector2i) -> void:
 			gen.show_slots = false
 			gen.show_deposit = s == null
 			gen.deposit = island.deposit
-			gen.position = WorldGrid.cell_to_world(cell)
+			gen.position = WorldGrid.island_center(GameState.world_seed(), cell)
 			node.add_child(gen)
 			if s != null:
 				node.add_child(_settlement_ring(gen.position, island.radius, s))
@@ -189,8 +192,9 @@ func _rebuild_labels() -> void:
 		var label := Label.new()
 		label.text = "%s\n%s" % [s.name, "Ty" if s.is_own else "gracz %d" % s.owner_id]
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.size = Vector2(240, 56)
-		label.position = WorldGrid.cell_to_world(s.coord) + Vector2(-120, radius * 1.3 + 4)
+		label.size = LABEL_SIZE
+		label.position = WorldGrid.island_center(GameState.world_seed(), s.coord) \
+			+ Vector2(-LABEL_SIZE.x / 2.0, radius * 1.3 + 4)
 		label.theme_type_variation = &"Title"
 		label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 		label.add_theme_color_override("font_color", OWN_COLOR if s.is_own else FOREIGN_COLOR)
@@ -216,7 +220,9 @@ func _on_tapped(world_pos: Vector2, screen_pos: Vector2) -> void:
 	var island := GameState.island_at(cell)
 	if island == null:
 		return
-	var local := world_pos - WorldGrid.cell_to_world(cell)
+	# Od środka wyspy, nie komórki. Sąsiednich komórek nie trzeba sprawdzać: dysk trafienia
+	# nigdy nie wychodzi poza własną komórkę (world_map_test, test_tap_disc_never_leaves_its_cell).
+	var local := world_pos - WorldGrid.island_center(GameState.world_seed(), cell)
 	if not IslandGenerator.contains(local, island.radius):
 		return
 	var s := GameState.settlement_at(cell)

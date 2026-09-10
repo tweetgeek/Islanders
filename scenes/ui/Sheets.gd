@@ -157,4 +157,4 @@ func _on_upgrade_requested(coord: Vector2i, building: int) -> void:
 ## Tap w kartę: arkusz znika, mapa otwiera się na pozycji floty (view_changed zamknie warstwę od razu).
 func _on_fleet_tapped(fleet: Fleet) -> void:
 	close()
-	SceneManager.show_world_map_at(fleet.position_at(TimeUtil.now()))
+	SceneManager.show_world_map_at(fleet.position_at(TimeUtil.now(), GameState.world_seed()))

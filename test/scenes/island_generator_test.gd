@@ -94,3 +94,11 @@ func test_clear_removes_everything() -> void:
 	gen.clear()
 	assert_int(gen.get_child_count()).is_equal(0)
 	assert_int(gen.slot_at(Vector2.ZERO)).is_equal(-1)
+
+
+## Test prześwitu między wyspami (world_map_test) mierzy shallow_outline(), więc musi to być
+## dokładnie ten wielokąt, który build() rysuje jako "Shallow".
+func test_shallow_outline_is_what_build_draws() -> void:
+	var gen := _generator(Biome.Type.TROPICAL, false)
+	var drawn: Polygon2D = gen.get_node("Shallow")
+	assert_that(drawn.polygon).is_equal(IslandGenerator.shallow_outline(gen.seed_val, gen.radius))
