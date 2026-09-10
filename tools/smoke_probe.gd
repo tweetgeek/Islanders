@@ -157,8 +157,8 @@ func _process(_delta: float) -> void:
 			_check(ThemeDB.get_default_theme().get_type_variation_base(&"Plaque") == &"PanelContainer", "motyw wgrany")
 			var hud := get_node("Main/HUD")
 			_check(hud.settlement_name.text == "Koralowa", "HUD pokazuje osadę aktywną")
-			_check(hud.pop_label.text == "42 / 120", "HUD pokazuje populację")
 			var det := get_node_or_null("Main/ViewContainer/IslandDetail")
+			_check(det != null and det.pop_label.text == "42 / 120", "widok osady pokazuje populację")
 			var gen: IslandGenerator = det.get_node("Generator") if det != null else null
 			_check(det != null and gen.show_slots and gen._slot_positions.size() == 6, "osada ma 6 slotów")
 			var dock := get_node("Main/Dock")
@@ -299,7 +299,7 @@ func _process(_delta: float) -> void:
 			ApiClient.resync()
 		elif _frame == _gate + 20:
 			_check(GameState.settlements.size() == 3, "resync zachowuje osady")
-			_check(get_node("Main/HUD").pop_label.text == "42 / 120", "HUD po resyncu")
+			_check(get_node("Main/HUD").settlement_name.text == "Koralowa", "HUD po resyncu")
 			_tap_control(_map().back_plaque)
 		elif _frame == _gate + 24:
 			_check(SceneManager.current_view == SceneManager.VIEW_ISLAND_DETAIL, "plakietka OSADA wraca do osady")

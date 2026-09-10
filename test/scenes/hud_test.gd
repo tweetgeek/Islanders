@@ -5,6 +5,9 @@ const HOME := FixtureCells.HOME
 
 
 func before_test() -> void:
+	# Geometria paska zależy od fontów i rozmiarów z motywu; bez tego test mierzyłby domyślny
+	# motyw silnika, a nie to, co widzi gracz.
+	MedievalTheme.install()
 	GameState.reset()
 	GameState.apply_world(FixtureCells.world_json())
 	GameState.apply_settlements([{
@@ -32,7 +35,6 @@ func test_profile_row_shows_active_settlement() -> void:
 	assert_str(hud.settlement_name.text).is_equal("Koralowa")
 	assert_str(hud.biome_badge.text).is_equal("TROPICAL")
 	assert_str(hud.subtitle.text).is_equal("Świat w1 · (%d, %d)" % [HOME.x, HOME.y])
-	assert_str(hud.gold_label.text).is_equal("0")
 
 
 func test_cards_show_amounts_and_rates() -> void:
@@ -44,14 +46,6 @@ func test_cards_show_amounts_and_rates() -> void:
 	# Color.a jest float32, więc zapis i odczyt 0.45 różni się o 1 ULP - stąd tolerancja.
 	assert_float(hud.cards["stone"].modulate.a).is_equal_approx(hud.DIMMED, 0.001)
 	assert_float(hud.cards["wood"].modulate.a).is_equal(1.0)
-
-
-func test_population_bar_and_warning() -> void:
-	var hud := _hud()
-	assert_str(hud.pop_label.text).is_equal("118 / 120")
-	assert_float(hud.pop_bar.max_value).is_equal(120.0)
-	assert_float(hud.pop_bar.value).is_equal(118.0)
-	assert_that(hud.pop_label.get_theme_color("font_color")).is_equal(MedievalTheme.BLOOD)
 
 
 func test_no_settlement_shows_dashes() -> void:
@@ -109,3 +103,31 @@ func test_no_hud_label_is_narrower_than_its_text() -> void:
 				label.name, label.text, label.size.x, _needed_width(label)
 			]) \
 			.is_greater_equal(_needed_width(label))
+
+
+## Wybrany wariant: dwa wiersze, cel około 14 %, próg 16 %. Mierzone przy oknie w proporcjach
+## telefonu i z wgranym motywem, czyli w konfiguracji, którą widzi gracz.
+func test_bar_stays_within_the_height_budget() -> void:
+	var original := get_tree().root.size
+	get_tree().root.size = Vector2i(1080, 1920)
+	var hud := _hud()
+	await await_idle_frame()
+	await await_idle_frame()
+	await await_idle_frame()
+	# Adnotacja typu (zamiast := ) omija kaprys tego builda: dzielenie wyniku "niebezpiecznego"
+	# wywołania metody (hud jest typu CanvasLayer, bar_height() zna dopiero HUD.gd) daje typ,
+	# którego := nie potrafi wywnioskować - choć samo wywołanie działa poprawnie w runtime.
+	var ratio: float = hud.bar_height() / hud.get_viewport().get_visible_rect().size.y
+	get_tree().root.size = original
+	assert_float(ratio).is_greater(0.0)
+	assert_float(ratio).is_less_equal(0.16)
+
+
+func test_bar_has_only_identity_and_resource_rows() -> void:
+	var hud := _hud()
+	assert_int(hud.bar_rows.get_child_count()).is_equal(2)
+	assert_object(hud.settlement_name.get_parent()).is_same(hud.identity_row)
+	assert_object(hud.biome_badge.get_parent()).is_same(hud.identity_row)
+	assert_object(hud.subtitle.get_parent()).is_same(hud.identity_row)
+	for gone in ["avatar", "gold_label", "pop_label", "pop_bar"]:
+		assert_bool(gone in hud).override_failure_message("pasek wciąż ma %s" % gone).is_false()

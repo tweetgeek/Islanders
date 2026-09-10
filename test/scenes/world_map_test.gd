@@ -365,7 +365,7 @@ func test_map_ui_follows_hud_bar_after_rotation() -> void:
 
 	await _resize_window(LANDSCAPE_WINDOW)
 	# Obrót musi realnie zmienić wysokość paska, inaczej test przechodziłby bez naprawy.
-	assert_object(hud.resource_grid.get_parent()).is_same(hud.profile_row)
+	assert_object(hud.resource_grid.get_parent()).is_same(hud.identity_row)
 	assert_float(world_map.coord_panel.offset_top).is_equal_approx(hud.bar_height() + m, 0.5)
 	assert_float(world_map.back_plaque.position.y).is_equal_approx(hud.bar_height() + m, 0.5)
 

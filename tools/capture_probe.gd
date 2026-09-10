@@ -16,8 +16,8 @@ const MAIN := preload("res://scenes/views/Main.tscn")
 ## Wycinki zapisywane dodatkowo w skali 1:1, żeby dało się ocenić szczegół bez skalowania.
 ## Klucz to nazwa pliku, wartość to prostokąt w pikselach canvasu.
 const CROPS := {
-	"pasek-nazwa": Rect2i(0, 0, 540, 260),
-	"pasek-karty": Rect2i(0, 190, 700, 300),
+	"pasek": Rect2i(0, 0, 1080, 320),
+	"status-osady": Rect2i(0, 1600, 1080, 320),
 }
 
 var _out_dir := ""

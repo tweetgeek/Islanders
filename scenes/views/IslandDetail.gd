@@ -2,6 +2,7 @@ extends Node2D
 
 ## Dom gracza: osada aktywna z plakietkami slotów. Cudze i niczyje wyspy obsługuje InspectSheet
 ## nad mapą, nie ten widok. Tap w slot otwiera BuildingSheet przez grupę "sheets".
+## Populacja mieszka tutaj, nie w pasku: zmienia ją tylko rekrutacja, a ta dzieje się w osadzie.
 
 const DETAIL_RADIUS := 400.0
 ## Przycisk docku (rozmiar) plus prześwit nad nim (odstęp), żeby wyspa nie chowała się pod dokiem.
@@ -10,11 +11,20 @@ const DOCK_GAP := 24.0
 const HINT_MARGIN := 10.0
 const HINT_TEXT := "Dotknij slotu, żeby otworzyć budynek"
 const NO_SETTLEMENT_TEXT := "Brak osady"
+const POP_ICON := 16.0
+const POP_BAR := Vector2(90.0, 8.0)
+## Od tego zapełnienia limitu populacja ostrzega kolorem BLOOD.
+const POP_WARN := 0.95
 
 @onready var generator: IslandGenerator = $Generator
 @onready var camera: Camera2D = $Camera
-@onready var hint_panel: PanelContainer = $UI/HintPanel
-@onready var hint_label: Label = $UI/HintPanel/Hint
+@onready var status_row: HBoxContainer = $UI/StatusRow
+@onready var pop_panel: PanelContainer = $UI/StatusRow/PopPanel
+@onready var pop_icon: Icon = $UI/StatusRow/PopPanel/HBox/PopIcon
+@onready var pop_bar: ProgressBar = $UI/StatusRow/PopPanel/HBox/PopBar
+@onready var pop_label: Label = $UI/StatusRow/PopPanel/HBox/PopLabel
+@onready var hint_panel: PanelContainer = $UI/StatusRow/HintPanel
+@onready var hint_label: Label = $UI/StatusRow/HintPanel/Hint
 
 var _settlement: Settlement = null
 var _pressed_slot: int = -1
@@ -26,6 +36,7 @@ var _hint_dismissed := false
 
 
 func _ready() -> void:
+	_style_status()
 	GameState.active_settlement_changed.connect(_refresh)
 	GameState.settlement_updated.connect(_on_settlement_updated)
 	get_viewport().size_changed.connect(_layout)
@@ -36,12 +47,21 @@ func _ready() -> void:
 	_layout()
 
 
+func _style_status() -> void:
+	status_row.add_theme_constant_override("separation", MedievalTheme.gap(8))
+	(pop_panel.get_node("HBox") as HBoxContainer).add_theme_constant_override("separation", MedievalTheme.gap(6))
+	pop_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(POP_ICON)
+	pop_icon.color = MedievalTheme.INK_SOFT
+	pop_bar.custom_minimum_size = Vector2(MedievalTheme.px(POP_BAR.x), MedievalTheme.px(POP_BAR.y))
+
+
 func _refresh() -> void:
 	_settlement = GameState.active_settlement
 	_pressed_slot = -1
 	_pressed_index = -1
 	if _settlement == null:
 		generator.clear()
+		pop_panel.hide()
 		hint_label.text = NO_SETTLEMENT_TEXT
 		hint_panel.show()
 		return
@@ -53,8 +73,21 @@ func _refresh() -> void:
 	generator.show_slots = true
 	generator.settlement = _settlement
 	generator.build()
+	_show_population()
 	hint_label.text = HINT_TEXT
 	hint_panel.visible = not _hint_dismissed
+
+
+func _show_population() -> void:
+	pop_panel.show()
+	pop_bar.max_value = maxi(_settlement.population_max, 1)
+	pop_bar.value = _settlement.population
+	pop_label.text = "%d / %d" % [_settlement.population, _settlement.population_max]
+	var warn := (
+		_settlement.population_max > 0
+		and _settlement.population >= float(_settlement.population_max) * POP_WARN
+	)
+	pop_label.add_theme_color_override("font_color", MedievalTheme.BLOOD if warn else MedievalTheme.INK)
 
 
 func _on_settlement_updated(coord: Vector2i) -> void:
@@ -69,8 +102,8 @@ func _layout() -> void:
 	var bottom := vis.y - SafeArea.bottom_inset(get_viewport()) - MedievalTheme.px(DOCK_TOOL) - MedievalTheme.gap(DOCK_GAP)
 	var mid := (top + bottom) / 2.0
 	camera.position = Vector2(0.0, vis.y / 2.0 - mid)
-	hint_panel.offset_left = MedievalTheme.gap(HINT_MARGIN)
-	hint_panel.offset_bottom = -(vis.y - bottom)
+	status_row.offset_left = MedievalTheme.gap(HINT_MARGIN)
+	status_row.offset_bottom = -(vis.y - bottom)
 
 
 func _hud() -> Node:

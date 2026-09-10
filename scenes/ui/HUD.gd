@@ -1,7 +1,8 @@
 extends CanvasLayer
 
-## Górny pasek osady aktywnej. Nie liczy nic sam: woła Settlement.current_resources(TimeUtil.now()).
-## Pokazuje wyłącznie osadę aktywną; oglądana wyspa to zadanie InspectSheet.
+## Górny pasek osady aktywnej: wiersz tożsamości i pięć kart zasobów. Nie liczy nic sam:
+## woła Settlement.current_resources(TimeUtil.now()). Pokazuje wyłącznie osadę aktywną;
+## oglądana wyspa to zadanie InspectSheet, a populacja mieszka w widoku osady.
 
 ## Emitowany, gdy wysokość paska naprawdę się zmieniła - po ustaleniu layoutu, nie w trakcie.
 ## Widoki podpięte do samego size_changed czytają bar_height() jeszcze sprzed przepięcia
@@ -11,25 +12,16 @@ signal bar_height_changed
 ## Przyciemnienie karty zasobu, którego osada nie produkuje (45% krycia).
 const DIMMED := 0.45
 const PAD := 12.0
-const AVATAR := 40.0
 const ICON := 24.0
-const SMALL_ICON := 16.0
-const POP_WARN := 0.95
 
 @onready var top_bar: PanelContainer = $TopBar
 @onready var pad: MarginContainer = $TopBar/Pad
 @onready var bar_rows: VBoxContainer = $TopBar/Pad/BarRows
-@onready var profile_row: HBoxContainer = $TopBar/Pad/BarRows/ProfileRow
-@onready var avatar: Icon = $TopBar/Pad/BarRows/ProfileRow/Avatar
-@onready var settlement_name: Label = $TopBar/Pad/BarRows/ProfileRow/Identity/NameRow/SettlementName
-@onready var biome_badge: Label = $TopBar/Pad/BarRows/ProfileRow/Identity/NameRow/BiomeBadge
-@onready var subtitle: Label = $TopBar/Pad/BarRows/ProfileRow/Identity/Subtitle
-@onready var gold_icon: Icon = $TopBar/Pad/BarRows/ProfileRow/GoldPanel/HBox/GoldIcon
-@onready var gold_label: Label = $TopBar/Pad/BarRows/ProfileRow/GoldPanel/HBox/GoldLabel
+@onready var identity_row: HBoxContainer = $TopBar/Pad/BarRows/IdentityRow
+@onready var settlement_name: Label = $TopBar/Pad/BarRows/IdentityRow/SettlementName
+@onready var biome_badge: Label = $TopBar/Pad/BarRows/IdentityRow/BiomeBadge
+@onready var subtitle: Label = $TopBar/Pad/BarRows/IdentityRow/Subtitle
 @onready var resource_grid: HBoxContainer = $TopBar/Pad/BarRows/ResourceGrid
-@onready var pop_icon: Icon = $TopBar/Pad/BarRows/PopulationRow/PopIcon
-@onready var pop_bar: ProgressBar = $TopBar/Pad/BarRows/PopulationRow/PopBar
-@onready var pop_label: Label = $TopBar/Pad/BarRows/PopulationRow/PopLabel
 
 var _settlement: Settlement = null
 ## zasób -> PanelContainer (cała karta)
@@ -52,21 +44,12 @@ func _ready() -> void:
 
 
 func _style_static_nodes() -> void:
-	var p := MedievalTheme.px(PAD)
+	var p := MedievalTheme.gap(PAD)
 	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
 		pad.add_theme_constant_override(side, p)
-	bar_rows.add_theme_constant_override("separation", MedievalTheme.px(9))
-	profile_row.add_theme_constant_override("separation", MedievalTheme.px(10))
-	resource_grid.add_theme_constant_override("separation", MedievalTheme.px(6))
-	avatar.custom_minimum_size = Vector2.ONE * MedievalTheme.px(AVATAR)
-	avatar.color = MedievalTheme.CREAM
-	gold_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SMALL_ICON)
-	gold_icon.color = MedievalTheme.BRASS
-	gold_label.add_theme_color_override("font_color", MedievalTheme.CREAM)   # placeholder pod przyszłą walutę
-	pop_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(SMALL_ICON)
-	pop_icon.color = MedievalTheme.CREAM_SOFT
-	pop_bar.custom_minimum_size.y = MedievalTheme.px(8)
-	pop_label.add_theme_color_override("font_color", MedievalTheme.CREAM)
+	bar_rows.add_theme_constant_override("separation", MedievalTheme.gap(9))
+	identity_row.add_theme_constant_override("separation", MedievalTheme.gap(10))
+	resource_grid.add_theme_constant_override("separation", MedievalTheme.gap(6))
 
 
 func _build_cards() -> void:
@@ -78,7 +61,7 @@ func _build_cards() -> void:
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var box := VBoxContainer.new()
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		box.add_theme_constant_override("separation", MedievalTheme.px(2))
+		box.add_theme_constant_override("separation", MedievalTheme.gap(2))
 		var top := HBoxContainer.new()
 		top.name = "TopRow"
 		top.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -139,10 +122,6 @@ func _on_active_changed() -> void:
 		settlement_name.text = "-"
 		biome_badge.text = ""
 		subtitle.text = ""
-		pop_label.text = "0 / 0"
-		pop_bar.max_value = 1.0
-		pop_bar.value = 0.0
-		pop_label.add_theme_color_override("font_color", MedievalTheme.CREAM)
 		for r in ResourceTypes.ALL:
 			_amounts[r].text = "0"
 			_rates[r].text = ""
@@ -156,11 +135,6 @@ func _on_active_changed() -> void:
 		var produces := _settlement.produces(r)
 		_rates[r].text = "+%d/h" % int(_settlement.production_per_hour[r]) if produces else ""
 		cards[r].modulate.a = 1.0 if produces else DIMMED
-	pop_bar.max_value = maxi(_settlement.population_max, 1)
-	pop_bar.value = _settlement.population
-	pop_label.text = "%d / %d" % [_settlement.population, _settlement.population_max]
-	var warn := _settlement.population >= float(_settlement.population_max) * POP_WARN
-	pop_label.add_theme_color_override("font_color", MedievalTheme.BLOOD if warn else MedievalTheme.CREAM)
 
 
 func _on_settlement_updated(coord: Vector2i) -> void:
@@ -182,15 +156,15 @@ func _on_size_changed() -> void:
 	_notify_bar_height()
 
 
-## Portret: karty zasobów pod wierszem profilu. Landscape: karty w tym samym wierszu po prawej,
+## Portret: karty zasobów pod wierszem tożsamości. Landscape: karty w tym samym wierszu po prawej,
 ## żeby obszar gry zachował wysokość.
 func _apply_orientation() -> void:
 	var vis := get_viewport().get_visible_rect().size
 	var landscape := vis.x > vis.y
 	var parent := resource_grid.get_parent()
-	if landscape and parent != profile_row:
+	if landscape and parent != identity_row:
 		parent.remove_child(resource_grid)
-		profile_row.add_child(resource_grid)
+		identity_row.add_child(resource_grid)
 		resource_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	elif not landscape and parent != bar_rows:
 		parent.remove_child(resource_grid)
