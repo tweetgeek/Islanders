@@ -86,10 +86,10 @@ func refresh_costs(costs: Dictionary, stock: Dictionary) -> void:
 		chip.visible = required > 0.0
 		_cost_labels[r].text = TimeUtil.format_thousands(required)
 		var short := held < required
-		var sb := MedievalTheme.flat(
-			MedievalTheme.SHORT_BG if short else MedievalTheme.VELLUM,
-			MedievalTheme.BLOOD if short else MedievalTheme.OAK_EDGE, 3, 1, 8, 8)
+		var bg := MedievalTheme.SHORT_BG if short else MedievalTheme.VELLUM
+		var sb := MedievalTheme.flat(bg, MedievalTheme.BLOOD if short else MedievalTheme.OAK_EDGE, 3, 1, 8, 8)
 		chip.add_theme_stylebox_override("panel", sb)
+		SheetStyle.chip_icon(chip).knockout = bg
 		_cost_labels[r].add_theme_color_override("font_color", MedievalTheme.BLOOD if short else MedievalTheme.INK)
 	cost_section.show()
 

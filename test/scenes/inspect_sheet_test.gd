@@ -69,3 +69,11 @@ func test_two_opens_in_one_frame_do_not_leave_stale_chips() -> void:
 	assert_bool(s.open(EMPTY_WITH_DEPOSIT)).is_true()
 	assert_int(s.deposit_row.get_child_count()).is_equal(island.deposit.size())
 	await await_idle_frame()
+
+
+## Nagłówek arkusza leży na dębie (ModalHeader), chip zasobu na ciemnym dębie (Chip).
+func test_header_and_chip_icons_cut_out_in_their_own_background() -> void:
+	var s := _sheet()
+	assert_that(s.biome_icon.knockout).is_equal(MedievalTheme.OAK)
+	var chip: PanelContainer = auto_free(SheetStyle.resource_chip("sulfur"))
+	assert_that(SheetStyle.chip_icon(chip).knockout).is_equal(MedievalTheme.OAK_DEEP)

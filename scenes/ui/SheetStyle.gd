@@ -23,6 +23,7 @@ static func apply_common(sheet: PanelContainer, grabber: Panel, header_icon: Ico
 	grabber.add_theme_stylebox_override("panel", MedievalTheme.flat(MedievalTheme.OAK_EDGE, MedievalTheme.OAK_EDGE, 2, 0, 0, 0))
 	header_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(icon_size)
 	header_icon.color = MedievalTheme.CREAM
+	header_icon.knockout = MedievalTheme.OAK   # nagłówek ModalHeader ma tło OAK
 	close_button.custom_minimum_size = Vector2.ONE * MedievalTheme.px(CLOSE)
 	Icon.into_button(close_button, &"close", MedievalTheme.CREAM, MedievalTheme.px(7))
 	close_button.pressed.connect(func() -> void: close_requested.emit())
@@ -39,8 +40,10 @@ static func resource_chip(resource: String, icon_size: float = CHIP_ICON) -> Pan
 	box.name = "Box"
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := Icon.new()
+	icon.name = "Icon"
 	icon.kind = ResourceTypes.ICONS[resource]
 	icon.color = ResourceTypes.COLORS[resource]
+	icon.knockout = MedievalTheme.OAK_DEEP   # tło wariacji Chip
 	icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(icon_size)
 	var amount := Label.new()
 	amount.name = "Amount"
@@ -54,3 +57,9 @@ static func resource_chip(resource: String, icon_size: float = CHIP_ICON) -> Pan
 ## Etykieta kwoty w chipie zbudowanym przez resource_chip().
 static func chip_amount(chip: PanelContainer) -> Label:
 	return chip.get_node("Box/Amount") as Label
+
+
+## Ikona zasobu w chipie zbudowanym przez resource_chip(); wołający, który przemalowuje tło
+## chipa, musi przestawić też jej wycięcie.
+static func chip_icon(chip: PanelContainer) -> Icon:
+	return chip.get_node("Box/Icon") as Icon

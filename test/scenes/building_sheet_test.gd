@@ -74,3 +74,12 @@ func test_upgrade_emits_coord_and_building() -> void:
 	s.upgrade_requested.connect(func(c: Vector2i, b: int) -> void: got.append([c, b]))
 	s.upgrade_button.pressed.emit()
 	assert_that(got).is_equal([[FixtureCells.HOME, Buildings.Type.SAWMILL]])
+
+
+## refresh_costs przemalowuje tło chipa (VELLUM albo SHORT_BG), więc wycięcie ikony musi pójść za nim.
+func test_cost_chip_icon_cuts_out_in_the_chip_background() -> void:
+	var s := _sheet()
+	s.open(_settlement(), Buildings.Type.TOWN_HALL)
+	s.refresh_costs({"sulfur": 100.0, "wood": 10.0}, {"wood": 50.0})
+	assert_that(SheetStyle.chip_icon(s.cost_chips["sulfur"]).knockout).is_equal(MedievalTheme.SHORT_BG)
+	assert_that(SheetStyle.chip_icon(s.cost_chips["wood"]).knockout).is_equal(MedievalTheme.VELLUM)

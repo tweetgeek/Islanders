@@ -22,6 +22,12 @@ const KINDS: Array[StringName] = [
 	set(v):
 		color = v
 		queue_redraw()
+## Kolor wycięć w glifie (okno ratusza, fałdy mapy, żyłka kamienia). Ma być kolorem tła,
+## na którym ikona leży - wtedy wycięcie czyta się jak dziura, a nie jak jasna plama.
+@export var knockout: Color = MedievalTheme.PARCHMENT:
+	set(v):
+		knockout = v
+		queue_redraw()
 
 var _warned := false
 
@@ -35,11 +41,14 @@ static func is_known(k: StringName) -> bool:
 
 
 ## Dodaje ikonę jako dziecko przycisku, rozciągniętą na cały przycisk z marginesem inset (px).
-static func into_button(button: Button, k: StringName, c: Color, inset: float) -> Icon:
+## Wycięcie domyślnie dębowe, bo każdy przycisk z ikoną w tym projekcie to ToolButton na OAK.
+static func into_button(button: Button, k: StringName, c: Color, inset: float,
+		knockout_color: Color = MedievalTheme.OAK) -> Icon:
 	var icon := Icon.new()
 	icon.name = "Icon"
 	icon.kind = k
 	icon.color = c
+	icon.knockout = knockout_color
 	button.add_child(icon)
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.offset_left = inset
@@ -81,11 +90,11 @@ func _draw_wood() -> void:
 	_line(Vector2(11, 20), Vector2(20, 14), 3.0)
 
 
+## Bryła z jedną wewnętrzną krawędzią, która dzieli ją na dwie płaszczyzny. Płaski sześciokąt
+## czytał się w tej skali jak plama.
 func _draw_stone() -> void:
-	var pts: Array = []
-	for i in 6:
-		pts.append(Vector2(12, 12) + Vector2.from_angle(float(i) / 6.0 * TAU) * 9.0)
-	_poly(pts)
+	_poly([Vector2(5, 15), Vector2(8, 7), Vector2(14, 4), Vector2(20, 8), Vector2(21, 16), Vector2(15, 20), Vector2(8, 20)])
+	draw_polyline(PackedVector2Array([Vector2(14, 4), Vector2(12, 12), Vector2(15, 20)]), knockout, 1.6, true)
 
 
 func _draw_food() -> void:
@@ -103,14 +112,14 @@ func _draw_iron() -> void:
 
 func _draw_sulfur() -> void:
 	_poly([Vector2(12, 3), Vector2(21.5, 20.5), Vector2(2.5, 20.5)])
-	draw_circle(Vector2(12, 15.5), 2.4, MedievalTheme.PARCHMENT)
+	draw_circle(Vector2(12, 15.5), 2.4, knockout)
 
 
 func _draw_town_hall() -> void:
 	draw_rect(Rect2(Vector2(5, 12), Vector2(14, 9)), color)
 	_poly([Vector2(3, 12.5), Vector2(12, 5), Vector2(21, 12.5)])
 	draw_rect(Rect2(Vector2(15, 3), Vector2(4, 6)), color)
-	draw_rect(Rect2(Vector2(10.5, 15), Vector2(3, 6)), MedievalTheme.PARCHMENT)
+	draw_rect(Rect2(Vector2(10.5, 15), Vector2(3, 6)), knockout)
 
 
 func _draw_barracks() -> void:
@@ -134,13 +143,13 @@ func _draw_warehouse() -> void:
 	draw_rect(Rect2(Vector2(4, 9), Vector2(16, 12)), color)
 	_poly([Vector2(3, 9), Vector2(12, 4), Vector2(21, 9)])
 	_line(Vector2(4, 14.5), Vector2(20, 14.5), 1.4)
-	draw_rect(Rect2(Vector2(10, 15.5), Vector2(4, 5.5)), MedievalTheme.PARCHMENT)
+	draw_rect(Rect2(Vector2(10, 15.5), Vector2(4, 5.5)), knockout)
 
 
 func _draw_map() -> void:
 	_poly([Vector2(3, 5), Vector2(9, 3), Vector2(15, 5), Vector2(21, 3), Vector2(21, 19), Vector2(15, 21), Vector2(9, 19), Vector2(3, 21)])
-	draw_line(Vector2(9, 3), Vector2(9, 19), MedievalTheme.PARCHMENT, 1.4, true)
-	draw_line(Vector2(15, 5), Vector2(15, 21), MedievalTheme.PARCHMENT, 1.4, true)
+	draw_line(Vector2(9, 3), Vector2(9, 19), knockout, 1.4, true)
+	draw_line(Vector2(15, 5), Vector2(15, 21), knockout, 1.4, true)
 
 
 func _draw_fleet() -> void:
@@ -158,7 +167,7 @@ func _draw_people() -> void:
 
 func _draw_gold() -> void:
 	draw_circle(Vector2(12, 12), 9.0, color)
-	draw_arc(Vector2(12, 12), 5.0, 0.0, TAU, 32, MedievalTheme.PARCHMENT, 1.8, true)
+	draw_arc(Vector2(12, 12), 5.0, 0.0, TAU, 32, knockout, 1.8, true)
 
 
 func _draw_plus() -> void:
@@ -191,7 +200,7 @@ func _draw_raid() -> void:
 func _draw_trade() -> void:
 	draw_rect(Rect2(Vector2(4, 9), Vector2(16, 11)), color)
 	draw_arc(Vector2(12, 9), 4.0, PI, TAU, 16, color, 2.0, true)
-	draw_line(Vector2(12, 9), Vector2(12, 20), MedievalTheme.PARCHMENT, 1.6, true)
+	draw_line(Vector2(12, 9), Vector2(12, 20), knockout, 1.6, true)
 
 
 func _draw_scout() -> void:
