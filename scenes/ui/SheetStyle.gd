@@ -17,8 +17,8 @@ static func apply_common(sheet: PanelContainer, grabber: Panel, header_icon: Ico
 		close_button: Button, close_requested: Signal, icon_size: float) -> void:
 	var margin: MarginContainer = sheet.get_node("SheetMargin")
 	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
-		margin.add_theme_constant_override(side, MedievalTheme.px(MARGIN))
-	(margin.get_node("Body") as Control).add_theme_constant_override("separation", MedievalTheme.px(11))
+		margin.add_theme_constant_override(side, MedievalTheme.gap(MARGIN))
+	(margin.get_node("Body") as Control).add_theme_constant_override("separation", MedievalTheme.gap(11))
 	grabber.custom_minimum_size = Vector2(MedievalTheme.px(GRABBER.x), MedievalTheme.px(GRABBER.y))
 	grabber.add_theme_stylebox_override("panel", MedievalTheme.flat(MedievalTheme.OAK_EDGE, MedievalTheme.OAK_EDGE, 2, 0, 0, 0))
 	header_icon.custom_minimum_size = Vector2.ONE * MedievalTheme.px(icon_size)

@@ -134,3 +134,11 @@ func test_inspect_sheet_height_matches_fraction() -> void:
 	var vis_h: float = get_viewport().get_visible_rect().size.y
 	var expected: float = vis_h * s.HEIGHT_INSPECT
 	assert_float(s.inspect_sheet.size.y).is_between(expected - 2.0, expected + 2.0)
+
+
+func test_sheet_margins_and_body_separation_are_gaps() -> void:
+	var s := _sheets()
+	var margin: MarginContainer = s.building_sheet.get_node("SheetMargin")
+	assert_int(margin.get_theme_constant("margin_left")).is_equal(MedievalTheme.gap(SheetStyle.MARGIN))
+	var body: Control = margin.get_node("Body")
+	assert_int(body.get_theme_constant("separation")).is_equal(MedievalTheme.gap(11))

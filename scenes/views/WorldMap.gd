@@ -153,7 +153,7 @@ func _style_ui() -> void:
 	back_icon.offset_top = MedievalTheme.px(12)
 	back_icon.offset_bottom = -MedievalTheme.px(12)
 	coord_label.add_theme_color_override("font_color", MedievalTheme.PARCHMENT)
-	zoom_controls.add_theme_constant_override("separation", MedievalTheme.px(8))
+	zoom_controls.add_theme_constant_override("separation", MedievalTheme.gap(8))
 	for b in [zoom_in, zoom_out]:
 		b.custom_minimum_size = Vector2(tool, tool)
 	Icon.into_button(zoom_in, &"plus", MedievalTheme.CREAM, MedievalTheme.px(13))
@@ -171,7 +171,7 @@ func _hud_bar_height() -> float:
 
 ## Plakietka powrotu i panel współrzędnych pod paskiem HUD, zoom nad safe area.
 func _layout_ui() -> void:
-	var m := MedievalTheme.px(UI_MARGIN)
+	var m := MedievalTheme.gap(UI_MARGIN)
 	var top := _hud_bar_height() + m
 	back_plaque.position = Vector2(m, top)
 	coord_panel.offset_top = top

@@ -4,8 +4,9 @@ extends Node2D
 ## nad mapą, nie ten widok. Tap w slot otwiera BuildingSheet przez grupę "sheets".
 
 const DETAIL_RADIUS := 400.0
-## Wysokość przycisku docku plus margines (w px projektu), żeby wyspa nie chowała się pod nim.
-const DOCK_CLEARANCE := 46.0 + 24.0
+## Przycisk docku (rozmiar) plus prześwit nad nim (odstęp), żeby wyspa nie chowała się pod dokiem.
+const DOCK_TOOL := 46.0
+const DOCK_GAP := 24.0
 const HINT_MARGIN := 10.0
 const HINT_TEXT := "Dotknij slotu, żeby otworzyć budynek"
 const NO_SETTLEMENT_TEXT := "Brak osady"
@@ -65,10 +66,10 @@ func _on_settlement_updated(coord: Vector2i) -> void:
 func _layout() -> void:
 	var vis := get_viewport().get_visible_rect().size
 	var top := _hud_bar_height()
-	var bottom := vis.y - SafeArea.bottom_inset(get_viewport()) - MedievalTheme.px(DOCK_CLEARANCE)
+	var bottom := vis.y - SafeArea.bottom_inset(get_viewport()) - MedievalTheme.px(DOCK_TOOL) - MedievalTheme.gap(DOCK_GAP)
 	var mid := (top + bottom) / 2.0
 	camera.position = Vector2(0.0, vis.y / 2.0 - mid)
-	hint_panel.offset_left = MedievalTheme.px(HINT_MARGIN)
+	hint_panel.offset_left = MedievalTheme.gap(HINT_MARGIN)
 	hint_panel.offset_bottom = -(vis.y - bottom)
 
 

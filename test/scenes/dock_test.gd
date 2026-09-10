@@ -48,3 +48,9 @@ func test_map_button_only_in_settlement_view() -> void:
 	assert_bool(d.map_button.visible).is_true()
 	SceneManager.view_changed.emit(SceneManager.VIEW_WORLD_MAP)
 	assert_bool(d.map_button.visible).is_false()
+
+
+func test_dock_buttons_sit_one_gap_from_the_edge() -> void:
+	var d := _dock()
+	await await_idle_frame()
+	assert_float(d.fleets_button.position.x).is_equal(float(MedievalTheme.gap(d.MARGIN)))

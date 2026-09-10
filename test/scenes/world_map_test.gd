@@ -360,7 +360,7 @@ func test_map_ui_follows_hud_bar_after_rotation() -> void:
 	var hud := _hud()
 	var world_map := _spawn_map(START_POS)
 	await _resize_window(PORTRAIT_WINDOW)
-	var m := MedievalTheme.px(WORLD_MAP_SCRIPT.UI_MARGIN)
+	var m := MedievalTheme.gap(WORLD_MAP_SCRIPT.UI_MARGIN)
 	assert_float(world_map.coord_panel.offset_top).is_equal_approx(hud.bar_height() + m, 0.5)
 
 	await _resize_window(LANDSCAPE_WINDOW)
@@ -417,3 +417,11 @@ func test_tap_inside_hud_bar_does_not_enter_own_settlement() -> void:
 	await await_idle_frame()
 	assert_object(GameState.active_settlement).is_null()
 	assert_str(SceneManager.current_view).is_equal(view_before)
+
+
+func test_map_ui_margins_are_gaps() -> void:
+	_apply_world()
+	var world_map := _spawn_map(START_POS)
+	await _settle(world_map)
+	assert_float(world_map.back_plaque.position.x).is_equal(float(MedievalTheme.gap(world_map.UI_MARGIN)))
+	assert_int(world_map.zoom_controls.get_theme_constant("separation")).is_equal(MedievalTheme.gap(8))
